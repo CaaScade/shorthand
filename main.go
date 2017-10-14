@@ -43,15 +43,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for key, value := range v {
-		fmt.Println("Key:", key, "Value:", value)
-	}
-
 	var p = FieldsPattern(
 		SimpleField("doot"),
-		PatternField("boop", FieldsPattern(SimpleField("wat"))),
-		SimpleField("boop"))
-	spew.Dump(p)
+		PatternField("boop", FieldsPattern(SimpleField("wat"))))
 	p.Match(v)
 	spew.Dump(p)
 }
@@ -91,6 +85,8 @@ func WholePattern() *Pattern {
 
 // FieldsPattern doot.
 func FieldsPattern(fs ...*Field) *Pattern {
+	// Fields should not have overlapping names.
+	// TODO: Verify that ^
 	return &Pattern{"", fs, nil}
 }
 
@@ -102,9 +98,4 @@ func SimpleField(name string) *Field {
 // PatternField doot.
 func PatternField(name string, p *Pattern) *Field {
 	return &Field{name, p}
-}
-
-// Fields doot.
-func Fields(fs ...*Field) []*Field {
-	return fs
 }
