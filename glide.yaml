@@ -1,2 +1,4 @@
 package: github.com/koki/shorthand
-import: []
+import:
+- package: github.com/davecgh/go-spew
+  version: v1.1.0
