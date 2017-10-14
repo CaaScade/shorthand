@@ -1,12 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
-	//"os"
-	//"reflect"
 	"github.com/davecgh/go-spew/spew"
+	"log"
 )
 
 // Using "U" to indicate "unboxed" types.
@@ -43,11 +42,29 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var p = FieldsPattern(
-		SimpleField("doot"),
-		PatternField("boop", FieldsPattern(SimpleField("wat"))))
+	var out bytes.Buffer
+	if err := json.Indent(&out, []byte(blob), "", "  "); err != nil {
+		log.Fatal(err)
+	}
+
+	blob1 := out.String()
+	fmt.Println(blob1)
+	/*
+		p := FieldsPattern(
+			SimpleField("doot"),
+			PatternField("boop", FieldsPattern(SimpleField("wat"))))
+	*/
+	p := FieldsPattern(PatternField("boop", FieldsPattern(SimpleField("wat"))))
 	p.Match(v)
 	spew.Dump(p)
+
+	v1 := RemovePattern(p, v)
+	blob2, err2 := json.MarshalIndent(v1, "", "  ")
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+	fmt.Println(string(blob2))
+	spew.Dump(v)
 }
 
 // Match doot.
@@ -70,8 +87,7 @@ func MatchFields(fs []*Field, m map[string]interface{}) {
 
 // Match doot.
 func (f *Field) Match(m map[string]interface{}) {
-	v, ok := m[f.name]
-	if ok {
+	if v, ok := m[f.name]; ok {
 		f.value.Match(v)
 	} else {
 		f.value.Match(Absent)
@@ -98,4 +114,47 @@ func SimpleField(name string) *Field {
 // PatternField doot.
 func PatternField(name string, p *Pattern) *Field {
 	return &Field{name, p}
+}
+
+// RemoveFields - remove the matched structure from the nested map.
+func RemoveFields(fs []*Field, m map[string]interface{}) interface{} {
+	for _, f := range fs {
+		RemoveField(f, m)
+	}
+
+	for k, v := range m {
+		switch v.(type) {
+		case AbsentU:
+			delete(m, k)
+		}
+	}
+
+	if len(m) > 0 {
+		return m
+	}
+
+	// We deleted all the fields from this structure.
+	return Absent
+}
+
+// RemoveField - remove a field from this map.
+func RemoveField(f *Field, m map[string]interface{}) {
+	if v, ok := m[f.name]; ok {
+		m[f.name] = RemovePattern(f.value, v)
+	} else {
+		log.Fatal("field doesn't match map", f, m)
+	}
+}
+
+// RemovePattern doot.
+func RemovePattern(p *Pattern, i interface{}) interface{} {
+	if p.fields == nil {
+		// We're removing the whole thing.
+		return Absent
+	} else if m, ok := i.(map[string]interface{}); ok {
+		return RemoveFields(p.fields, m)
+	} else {
+		log.Fatal("pattern doesn't match object", p, i)
+		return Absent
+	}
 }
