@@ -2,3 +2,5 @@ package: github.com/koki/shorthand
 import:
 - package: github.com/davecgh/go-spew
   version: v1.1.0
+- package: github.com/ghodss/yaml
+  version: v1.0.0

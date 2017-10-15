@@ -1,6 +1,10 @@
-hash: 126939c06a4524c6674588dcad676ac6c1e9eea6dbf1abe5c1ef19111820a8bb
-updated: 2017-10-14T13:29:07.790743855-07:00
+hash: c159c81bf325cec3c3c60d9851cbd44d2cb254920913af9d530ec90bef044ecd
+updated: 2017-10-15T16:45:57.469534212-07:00
 imports:
 - name: github.com/davecgh/go-spew
   version: 346938d642f2ec3594ed81d874461961cd0faa76
+  subpackages:
+  - spew
+- name: github.com/ghodss/yaml
+  version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
 testImports: []
