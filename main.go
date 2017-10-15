@@ -35,6 +35,9 @@ type Pattern struct {
 	value interface{}
 }
 
+// P is shorthand for Pattern
+type P map[string]interface{}
+
 func main() {
 	v := map[string]interface{}{}
 	blob := `{"doot":{},"boop":{"wat":"yes"}}`
@@ -49,7 +52,8 @@ func main() {
 
 	blob1 := out.String()
 	fmt.Println(blob1)
-	p := MkPattern(MkField("boop", MkField("wat")))
+	//p := MkPattern(MkField("boop", MkField("wat")))
+	p := MkP(P{"boop": P{"wat": nil}})
 	p.Match(v)
 	//spew.Dump(p)
 	fmt.Println(p.Extract())
@@ -62,7 +66,8 @@ func main() {
 	fmt.Println(string(blob2))
 	//spew.Dump(v)
 
-	q := MkPattern(MkField("b", ValField("p", 1000)))
+	//q := MkPattern(MkField("b", ValField("p", 1000)))
+	q := MkP(P{"b": P{"p": 1000}})
 	v2 := InsertPattern(q, v1)
 	blob3, err3 := json.MarshalIndent(v2, "", "  ")
 	if err3 != nil {
@@ -122,6 +127,24 @@ func MkField(name string, fs ...*Field) *Field {
 // ValField doot.
 func ValField(name string, i interface{}) *Field {
 	return &Field{name, ValPattern(i)}
+}
+
+// MkP doot.
+func MkP(p P) *Pattern {
+	fs := make([]*Field, 0, len(p))
+	for name, v := range p {
+		var f *Field
+		switch v.(type) {
+		case P:
+			f = &Field{name, MkP(v.(P))}
+		default:
+			f = ValField(name, v)
+		}
+
+		fs = append(fs, f)
+	}
+
+	return MkPattern(fs...)
 }
 
 // RemoveFields - remove the matched structure from the nested map.
