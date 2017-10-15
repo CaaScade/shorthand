@@ -37,7 +37,7 @@ type Pattern struct {
 
 func main() {
 	v := map[string]interface{}{}
-	blob := `{"doot":1,"boop":{"wat":"yes"}}`
+	blob := `{"doot":{},"boop":{"wat":"yes"}}`
 	if err := json.Unmarshal([]byte(blob), &v); err != nil {
 		log.Fatal(err)
 	}
@@ -64,7 +64,16 @@ func main() {
 		log.Fatal(err2)
 	}
 	fmt.Println(string(blob2))
-	spew.Dump(v)
+	//spew.Dump(v)
+
+	q := FieldsPattern(PatternField("doot", FieldsPattern(ValueField("wat", 1000))))
+	v2 := InsertPattern(q, v1)
+	blob3, err3 := json.MarshalIndent(v2, "", "  ")
+	if err3 != nil {
+		log.Fatal(err3)
+	}
+	fmt.Println(string(blob3))
+	//spew.Dump(v2)
 }
 
 // Match doot.
@@ -99,6 +108,11 @@ func WholePattern() *Pattern {
 	return &Pattern{"", nil, nil}
 }
 
+// ValuePattern doot.
+func ValuePattern(i interface{}) *Pattern {
+	return &Pattern{"", nil, i}
+}
+
 // FieldsPattern doot.
 func FieldsPattern(fs ...*Field) *Pattern {
 	// Fields should not have overlapping names.
@@ -109,6 +123,11 @@ func FieldsPattern(fs ...*Field) *Pattern {
 // SimpleField doot.
 func SimpleField(name string) *Field {
 	return &Field{name, WholePattern()}
+}
+
+// ValueField doot.
+func ValueField(name string, i interface{}) *Field {
+	return &Field{name, ValuePattern(i)}
 }
 
 // PatternField doot.
@@ -158,3 +177,103 @@ func RemovePattern(p *Pattern, i interface{}) interface{} {
 		return Absent
 	}
 }
+
+// InsertPattern doot.
+func InsertPattern(p *Pattern, i interface{}) interface{} {
+	if p.fields == nil {
+		switch i.(type) {
+		case AbsentU:
+			return p.value
+		default:
+			log.Fatal("attempted to overwrite", p, i)
+			return i
+		}
+	} else {
+		return InsertFields(p.fields, i)
+	}
+}
+
+// InsertFields doot.
+func InsertFields(fs []*Field, i interface{}) interface{} {
+	var m map[string]interface{}
+	switch i.(type) {
+	case AbsentU:
+		m = nil
+	case map[string]interface{}:
+		m = i.(map[string]interface{})
+	default:
+		log.Fatal("expected map or Absent", i)
+	}
+
+	for _, f := range fs {
+		// What's the old value?
+		var v0 interface{}
+		if m != nil {
+			if mv, ok := m[f.name]; ok {
+				v0 = mv
+			} else {
+				v0 = Absent
+			}
+		} else {
+			v0 = Absent
+		}
+
+		// Get the new value and insert it (if present).
+		v := InsertPattern(f.value, v0)
+		switch v.(type) {
+		case AbsentU:
+			// Do nothing.
+		default:
+			if m == nil {
+				m = map[string]interface{}{f.name: v}
+			} else {
+				m[f.name] = v
+			}
+		}
+	}
+
+	return m
+}
+
+/*
+// InsertField doot.
+func InsertField(f *Field, i interface{}) interface{} {
+	var v0 interface{}
+
+	switch i.(type) {
+	case AbsentU:
+		v0 = Absent
+	case map[string]interface{}:
+		m := i.(map[string]interface{})
+		if mv, ok := m[f.name]; ok {
+			v0 = mv
+		} else {
+			v0 = Absent
+		}
+	default:
+		log.Fatal("expected map or Absent", i)
+		return i
+	}
+
+	v := InsertPattern(f.value, v0)
+
+	switch v.(type) {
+	case AbsentU:
+		return i
+	default:
+		var m map[string]interface{}
+		switch i.(type) {
+		case AbsentU:
+			m = map[string]interface{}{}
+		case map[string]interface{}:
+			m = i.(map[string]interface{})
+		default:
+			log.Fatal("expected map or Absent (1)", i)
+			return i
+		}
+
+		m[f.name] = v
+		return m
+	}
+}
+*/
