@@ -49,12 +49,7 @@ func main() {
 
 	blob1 := out.String()
 	fmt.Println(blob1)
-	/*
-		p := FieldsPattern(
-			SimpleField("doot"),
-			PatternField("boop", FieldsPattern(SimpleField("wat"))))
-	*/
-	p := FieldsPattern(PatternField("boop", FieldsPattern(SimpleField("wat"))))
+	p := MkPattern(MkField("boop", MkField("wat")))
 	p.Match(v)
 	spew.Dump(p)
 
@@ -66,7 +61,7 @@ func main() {
 	fmt.Println(string(blob2))
 	//spew.Dump(v)
 
-	q := FieldsPattern(PatternField("doot", FieldsPattern(ValueField("wat", 1000))))
+	q := MkPattern(MkField("b", ValField("p", 1000)))
 	v2 := InsertPattern(q, v1)
 	blob3, err3 := json.MarshalIndent(v2, "", "  ")
 	if err3 != nil {
@@ -103,36 +98,29 @@ func (f *Field) Match(m map[string]interface{}) {
 	}
 }
 
-// WholePattern doot.
-func WholePattern() *Pattern {
-	return &Pattern{"", nil, nil}
-}
+// MkPattern doot.
+func MkPattern(fs ...*Field) *Pattern {
+	// If no fields, then match the whole structure.
 
-// ValuePattern doot.
-func ValuePattern(i interface{}) *Pattern {
-	return &Pattern{"", nil, i}
-}
-
-// FieldsPattern doot.
-func FieldsPattern(fs ...*Field) *Pattern {
 	// Fields should not have overlapping names.
 	// TODO: Verify that ^
 	return &Pattern{"", fs, nil}
 }
 
-// SimpleField doot.
-func SimpleField(name string) *Field {
-	return &Field{name, WholePattern()}
+// ValPattern doot.
+func ValPattern(i interface{}) *Pattern {
+	return &Pattern{"", nil, i}
 }
 
-// ValueField doot.
-func ValueField(name string, i interface{}) *Field {
-	return &Field{name, ValuePattern(i)}
+// MkField doot.
+func MkField(name string, fs ...*Field) *Field {
+	// If no fields, then match the whole structure.
+	return &Field{name, MkPattern(fs...)}
 }
 
-// PatternField doot.
-func PatternField(name string, p *Pattern) *Field {
-	return &Field{name, p}
+// ValField doot.
+func ValField(name string, i interface{}) *Field {
+	return &Field{name, ValPattern(i)}
 }
 
 // RemoveFields - remove the matched structure from the nested map.
@@ -165,7 +153,7 @@ func RemoveField(f *Field, m map[string]interface{}) {
 	}
 }
 
-// RemovePattern doot.
+// RemovePattern removes the captured fields from an object and returns the result.
 func RemovePattern(p *Pattern, i interface{}) interface{} {
 	if p.fields == nil {
 		// We're removing the whole thing.
@@ -178,7 +166,7 @@ func RemovePattern(p *Pattern, i interface{}) interface{} {
 	}
 }
 
-// InsertPattern doot.
+// InsertPattern merges the captured fields into an object and returns the result.
 func InsertPattern(p *Pattern, i interface{}) interface{} {
 	if p.fields == nil {
 		switch i.(type) {
@@ -193,7 +181,7 @@ func InsertPattern(p *Pattern, i interface{}) interface{} {
 	}
 }
 
-// InsertFields doot.
+// InsertFields merges the captured fields into an object and returns the result.
 func InsertFields(fs []*Field, i interface{}) interface{} {
 	var m map[string]interface{}
 	switch i.(type) {
@@ -233,4 +221,9 @@ func InsertFields(fs []*Field, i interface{}) interface{} {
 	}
 
 	return m
+}
+
+// Extract doot.
+func Extract(p *Pattern) interface{} {
+	return nil
 }
