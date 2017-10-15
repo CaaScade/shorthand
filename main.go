@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
+	//"github.com/davecgh/go-spew/spew"
 	"log"
 )
 
@@ -27,7 +27,7 @@ type Field struct {
 
 // Pattern is either a single hole or a list of named holes.
 type Pattern struct {
-	error string
+	error error
 
 	/* Field is optional. */
 	fields []*Field
@@ -51,7 +51,8 @@ func main() {
 	fmt.Println(blob1)
 	p := MkPattern(MkField("boop", MkField("wat")))
 	p.Match(v)
-	spew.Dump(p)
+	//spew.Dump(p)
+	fmt.Println(p.Extract())
 
 	v1 := RemovePattern(p, v)
 	blob2, err2 := json.MarshalIndent(v1, "", "  ")
@@ -78,7 +79,7 @@ func (p *Pattern) Match(i interface{}) {
 	} else if m, ok := i.(map[string]interface{}); ok {
 		MatchFields(p.fields, m)
 	} else {
-		p.error = fmt.Sprint("expected map", i)
+		p.error = fmt.Errorf("expected map %v", i)
 	}
 }
 
@@ -104,12 +105,12 @@ func MkPattern(fs ...*Field) *Pattern {
 
 	// Fields should not have overlapping names.
 	// TODO: Verify that ^
-	return &Pattern{"", fs, nil}
+	return &Pattern{nil, fs, nil}
 }
 
 // ValPattern doot.
 func ValPattern(i interface{}) *Pattern {
-	return &Pattern{"", nil, i}
+	return &Pattern{nil, nil, i}
 }
 
 // MkField doot.
@@ -223,7 +224,24 @@ func InsertFields(fs []*Field, i interface{}) interface{} {
 	return m
 }
 
-// Extract doot.
-func Extract(p *Pattern) interface{} {
-	return nil
+// Extract captured values from a Pattern.
+func (p *Pattern) Extract() interface{} {
+	switch {
+	case p.error != nil:
+		return p.error
+	case p.fields == nil:
+		return p.value
+	default:
+		return ExtractFields(p.fields)
+	}
+}
+
+// ExtractFields doot.
+func ExtractFields(fs []*Field) map[string]interface{} {
+	m := map[string]interface{}{}
+	for _, f := range fs {
+		m[f.name] = f.value.Extract()
+	}
+
+	return m
 }
