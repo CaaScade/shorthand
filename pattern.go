@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/kr/pretty"
 	"log"
+	"reflect"
 )
 
 // Using "U" to indicate "unboxed" types.
@@ -131,7 +132,7 @@ func (p *Pattern) Match(i interface{}) {
 	switch {
 	case p.IsConstant():
 		p.capture = i
-		if p.constant != i {
+		if !reflect.DeepEqual(p.constant, i) {
 			p.error = fmt.Errorf(
 				"constant and capture do not match")
 		}
