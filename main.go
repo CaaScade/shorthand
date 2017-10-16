@@ -27,8 +27,7 @@ func main() {
 
 	_, _ = pretty.Println(v)
 
-	p := MkP(P{"spec": P{"selector": P{"app": "nginx"}}})
-	_, _ = pretty.Println(p)
+	p := MkP(P{"spec": P{"selector": P{"app": Wild, "doot": Absent}}})
 	p.Match(v)
 	if p.HasErrors() {
 		log.Fatal(pretty.Sprint(p))
@@ -37,6 +36,7 @@ func main() {
 	p.Erase(v)
 
 	x, err1 := At(p.Extract(), "spec", "selector", "app")
+	_, _ = pretty.Println(p.Extract())
 	if err1 != nil {
 		log.Fatal(err1)
 	}

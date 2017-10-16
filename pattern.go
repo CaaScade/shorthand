@@ -17,6 +17,14 @@ const (
 	Absent AbsentU = iota
 )
 
+// WildcardU indicates that the pattern matches anything.
+type WildcardU int
+
+// Wild is the canonical value of type WildcardU.
+const (
+	Wild WildcardU = iota
+)
+
 // Field is a named hole.
 type Field struct {
 	name string
@@ -30,23 +38,10 @@ type Pattern struct {
 	capture interface{}
 
 	/* Option 1. */
-	constant interface{}
-
-	/* Option 2. */
 	fields []*Field
 
-	/* Option 3. */
-	whole bool
-}
-
-// IsConstant doot.
-func (p *Pattern) IsConstant() bool {
-	switch p.constant.(type) {
-	case AbsentU:
-		return false
-	default:
-		return true
-	}
+	/* Option 2. */
+	constant interface{}
 }
 
 // IsFields doot.
@@ -54,17 +49,12 @@ func (p *Pattern) IsFields() bool {
 	return p.fields != nil
 }
 
-// IsWhole doot.
-func (p *Pattern) IsWhole() bool {
-	return p.whole
-}
-
 // P is shorthand for Pattern
 type P map[string]interface{}
 
 // ConstPattern doot.
 func ConstPattern(i interface{}) *Pattern {
-	return &Pattern{nil, Absent, i, nil, false}
+	return &Pattern{nil, Absent, nil, i}
 }
 
 // FieldsPattern doot.
@@ -73,17 +63,17 @@ func FieldsPattern(fs ...*Field) *Pattern {
 
 	// Fields should not have overlapping names.
 	// TODO: Verify that ^
-	return &Pattern{nil, Absent, Absent, fs, false}
+	return &Pattern{nil, Absent, fs, Wild}
 }
 
 // WholePattern doot.
 func WholePattern() *Pattern {
-	return &Pattern{nil, Absent, Absent, nil, true}
+	return &Pattern{nil, Absent, nil, Wild}
 }
 
-// ValPattern doot.
+// ValPattern has already captured a value.
 func ValPattern(i interface{}) *Pattern {
-	return &Pattern{nil, i, Absent, nil, true}
+	return &Pattern{nil, i, nil, Wild}
 }
 
 // ConstField doot.
@@ -115,7 +105,7 @@ func MkP(p P) *Pattern {
 		switch v.(type) {
 		case P:
 			f = &Field{name, MkP(v.(P))}
-		case AbsentU:
+		case WildcardU:
 			f = ValField(name, v)
 		default:
 			f = ConstField(name, v)
@@ -129,17 +119,19 @@ func MkP(p P) *Pattern {
 
 // Match a pattern to an object and capture its values.
 func (p *Pattern) Match(i interface{}) {
-	switch {
-	case p.IsConstant():
-		p.capture = i
-		if !reflect.DeepEqual(p.constant, i) {
-			p.error = fmt.Errorf(
-				"constant and capture do not match")
-		}
-	case p.IsFields():
+	if p.IsFields() {
 		p.matchFields(i)
-	case p.IsWhole():
-		p.capture = i
+	} else {
+		switch p.constant.(type) {
+		case WildcardU:
+			p.capture = i
+		default:
+			p.capture = i
+			if !reflect.DeepEqual(p.constant, i) {
+				p.error = fmt.Errorf(
+					"constant and capture don't match")
+			}
+		}
 	}
 }
 
@@ -191,7 +183,7 @@ func removeField(f *Field, m map[string]interface{}) {
 	if v, ok := m[f.name]; ok {
 		m[f.name] = removePattern(f.value, v)
 	} else {
-		log.Fatal(pretty.Sprint("field doesn't match map", f, m))
+		m[f.name] = removePattern(f.value, Absent)
 	}
 }
 
@@ -217,24 +209,25 @@ func (p *Pattern) Erase(i interface{}) interface{} {
 
 // insertPattern merges the captured fields into an object and returns the result.
 func insertPattern(p *Pattern, i interface{}) (interface{}, error) {
-	switch {
-	case p.IsConstant():
-		return insertValue(p.constant, i)
-	case p.IsWhole():
-		ii, err := insertValue(p.capture, i)
-		if err == nil {
-			return ii, pretty.Errorf(
-				"unexpected WholePattern (%v)", p)
-		}
-
-		return ii, pretty.Errorf(
-			"unexpected WholePattern (%v), also (%v)", p, err)
-	case p.IsFields():
+	if p.IsFields() {
 		return insertFields(p.fields, i)
 	}
 
-	log.Fatal("Inconceivable!")
-	return i, fmt.Errorf("inconceivable")
+	switch p.constant.(type) {
+	case WildcardU:
+		ii, err := insertValue(p.capture, i)
+		// We should be using constant patterns to write.
+		if err != nil {
+			err = fmt.Errorf("unexpected Wildcard (%v), also (%v)",
+				p, err)
+		} else {
+			err = fmt.Errorf("unexpected Wildcard (%v)", p)
+		}
+
+		return ii, err
+	default:
+		return insertValue(p.constant, i)
+	}
 }
 
 func insertValue(v interface{}, i interface{}) (interface{}, error) {
@@ -317,16 +310,11 @@ func (p *Pattern) Extract() interface{} {
 	switch {
 	case p.error != nil:
 		return p.error
-	case p.IsConstant():
-		return p.constant
-	case p.IsWhole():
-		return p.capture
 	case p.IsFields():
 		return extractFields(p.fields)
+	default:
+		return p.capture
 	}
-
-	log.Fatal("Inconceivable!")
-	return Absent
 }
 
 // Extract captured values from a Field.
