@@ -242,3 +242,48 @@ func extractFields(fs []*Field) map[string]interface{} {
 
 	return m
 }
+
+// At doot.
+func At(i interface{}, ks ...string) (interface{}, error) {
+	if len(ks) > 0 {
+		k := ks[0]
+		if m, ok := i.(map[string]interface{}); ok {
+			if v, ok := m[k]; ok {
+				return (At(v, ks[1:]...))
+			}
+
+			return nil, fmt.Errorf(
+				"no value for key %s", k)
+		}
+
+		return nil, fmt.Errorf(
+			"expected a map %v", i)
+	}
+
+	return i, nil
+}
+
+/*
+// Set doot.
+func Set(m map[string]interface{}, v interface{}, ks ...string) error {
+	l := len(ks)
+	if l > 0 {
+		k := ks[0]
+
+		if l == 1 {
+			m[k] = v
+			return nil
+		}
+
+		mk := m[k]
+
+		if mm, ok := mk.(map[string]interface{}); ok {
+			return Set(mm, v, ks[1:]...)
+		}
+
+		return fmt.Errorf("expected a map %v", mk)
+	}
+
+	return fmt.Errorf("can't set with zero keys")
+}
+*/

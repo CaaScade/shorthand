@@ -34,7 +34,12 @@ func main() {
 	p.Match(v)
 	p.Erase(v)
 
-	q := MkP(P{"spec": P{"app": "doot"}})
+	x, err1 := At(p.Extract(), "spec", "selector", "app")
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+
+	q := MkP(P{"spec": P{"app": x}})
 	q.Write(v)
 
 	o, err1 := yaml.Marshal(v)
