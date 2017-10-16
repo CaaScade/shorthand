@@ -27,24 +27,14 @@ func main() {
 
 	_, _ = pretty.Println(v)
 
-	p := MkP(P{"spec": P{"selector": P{"app": Wild, "doot": Absent}}})
-	p.Match(v)
-	if p.HasErrors() {
-		log.Fatal(pretty.Sprint(p))
-	}
+	var w interface{}
+	w, err = ServicePorts(Identity()).View(v)
 
-	p.Erase(v)
-
-	x, err1 := At(p.Extract(), "spec", "selector", "app")
-	_, _ = pretty.Println(p.Extract())
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-
-	q := MkP(P{"spec": P{"app": x}})
-	_, err = q.Write(v)
-	if err != nil {
-		log.Fatal(err)
+	switch w.(type) {
+	case map[string]interface{}:
+		// Continue
+	default:
+		log.Fatal(pretty.Sprint(w))
 	}
 
 	o, err1 := yaml.Marshal(v)

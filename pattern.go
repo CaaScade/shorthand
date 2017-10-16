@@ -352,6 +352,8 @@ func At(i interface{}, ks ...string) (interface{}, error) {
 	return i, nil
 }
 
+// TODO: Clear captures from pattern (so it can be reused)
+
 /*
 // Set doot.
 func Set(m map[string]interface{}, v interface{}, ks ...string) error {
