@@ -439,6 +439,25 @@ func setConst(fs []*Field, k string, v interface{}, ks []string) error {
 	return pretty.Errorf("no value for (%# v):(%# v) in (%# v)", k, ks, fs)
 }
 
+// Clone doot.
+func (p *Pattern) Clone() *Pattern {
+	return &Pattern{p.error, p.capture, clone(p.fields), p.constant}
+}
+
+func clone(fs []*Field) []*Field {
+	if fs == nil {
+		return nil
+	}
+
+	l := len(fs)
+	ffs := make([]*Field, l, l)
+	for i, f := range fs {
+		ffs[i] = &Field{f.name, f.value.Clone()}
+	}
+
+	return ffs
+}
+
 /*
 // Set doot.
 func Set(m map[string]interface{}, v interface{}, ks ...string) error {

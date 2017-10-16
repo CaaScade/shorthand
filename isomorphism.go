@@ -140,19 +140,15 @@ func Zoom(telescope *Pattern, p *Prism) *Prism {
 			return nil, err
 		}
 
-		err = from.SetConst(v, ks...)
+		to := from.Clone()
+		err = to.SetConst(v, ks...)
 		if err != nil {
 			log.Fatal(pretty.Sprintf(
-				"couldn't set telescope (%# v):\n%v", from, err))
+				"couldn't set telescope (%# v):\n%v", to, err))
 		}
 
-		return from, nil
+		return to, nil
 	}
 
 	return &Prism{telescope, split}
-}
-
-// ServicePorts telescope.
-func ServicePorts() *Pattern {
-	return MkP(P{"kind": "Service", "spec": P{"ports": Wild}})
 }
