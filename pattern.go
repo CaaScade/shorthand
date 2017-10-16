@@ -102,11 +102,13 @@ func MkP(p P) *Pattern {
 	fs := make([]*Field, 0, len(p))
 	for name, v := range p {
 		var f *Field
-		switch v.(type) {
+		switch v := v.(type) {
 		case P:
-			f = &Field{name, MkP(v.(P))}
+			f = &Field{name, MkP(v)}
 		case WildcardU:
 			f = ValField(name, v)
+		case int:
+			f = ConstField(name, float64(v))
 		default:
 			f = ConstField(name, v)
 		}
@@ -235,7 +237,7 @@ func insertValue(v interface{}, i interface{}) (interface{}, error) {
 	case AbsentU:
 		return v, nil
 	default:
-		return v, pretty.Errorf("wrote (%v) over (%v)", v, i)
+		return v, pretty.Errorf("wrote (%# v) over (%# v)", v, i)
 	}
 }
 
@@ -248,7 +250,7 @@ func insertFields(fs []*Field, i interface{}) (interface{}, error) {
 	case map[string]interface{}:
 		m = i.(map[string]interface{})
 	default:
-		return i, pretty.Errorf("expected map or Absent (%v)", i)
+		return i, pretty.Errorf("expected map or Absent (%# v)", i)
 	}
 
 	for _, f := range fs {
@@ -346,13 +348,96 @@ func At(i interface{}, ks ...string) (interface{}, error) {
 		}
 
 		return nil, pretty.Errorf(
-			"expected a map (%v)", i)
+			"expected a map (%# v)", i)
 	}
 
 	return i, nil
 }
 
-// TODO: Clear captures from pattern (so it can be reused)
+// WildcardPath doot.
+func (p *Pattern) WildcardPath() ([]string, error) {
+	r, err := p.ReverseWildcardPath()
+	if err != nil {
+		return nil, err
+	}
+
+	l := len(r)
+
+	ks := make([]string, l, l)
+	for i, k := range r {
+		ks[l-i-1] = k
+	}
+
+	return ks, nil
+}
+
+// ReverseWildcardPath doot.
+func (p *Pattern) ReverseWildcardPath() ([]string, error) {
+	if p.IsFields() {
+		return ReverseWildcardPath(p.fields...)
+	}
+
+	switch p.constant.(type) {
+	case WildcardU:
+		return []string{}, nil
+	default:
+		return nil, fmt.Errorf("dead end")
+	}
+}
+
+// ReverseWildcardPath doot.
+func ReverseWildcardPath(fs ...*Field) ([]string, error) {
+	for _, f := range fs {
+		ks, err := f.value.ReverseWildcardPath()
+		if err == nil {
+			return append(ks, f.name), nil
+		}
+	}
+
+	return nil, fmt.Errorf("dead ends")
+}
+
+// Clear captures from pattern (so it can be reused)
+func (p *Pattern) Clear() {
+	p.error = nil
+	p.capture = Absent
+	if p.IsFields() {
+		for _, f := range p.fields {
+			f.value.Clear()
+		}
+	}
+}
+
+// SetConst doot.
+func (p *Pattern) SetConst(v interface{}, ks ...string) error {
+	if len(ks) > 0 {
+		if !p.IsFields() {
+			return pretty.Errorf("no more keys at (%# v)", p)
+		}
+
+		return setConst(p.fields, ks[0], v, ks[1:])
+	}
+
+	if p.IsFields() {
+		return pretty.Errorf(
+			"dead end (%# v) with keys (%# v)", p, ks)
+	}
+
+	p.constant = v
+
+	return nil
+}
+
+// setConst doot.
+func setConst(fs []*Field, k string, v interface{}, ks []string) error {
+	for _, f := range fs {
+		if f.name == k {
+			return f.value.SetConst(v, ks...)
+		}
+	}
+
+	return pretty.Errorf("no value for (%# v):(%# v) in (%# v)", k, ks, fs)
+}
 
 /*
 // Set doot.
@@ -372,7 +457,7 @@ func Set(m map[string]interface{}, v interface{}, ks ...string) error {
 			return Set(mm, v, ks[1:]...)
 		}
 
-		return fmt.Errorf("expected a map %v", mk)
+		return fmt.Errorf("expected a map %# v", mk)
 	}
 
 	return fmt.Errorf("can't set with zero keys")

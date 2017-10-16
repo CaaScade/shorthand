@@ -28,7 +28,11 @@ func main() {
 	_, _ = pretty.Println(v)
 
 	var w interface{}
-	w, err = ServicePorts(Identity()).View(v)
+	telescope := MkP(P{"kind": "Service", "spec": P{"ports": Wild}})
+	w, err = Zoom(telescope, Multiply(Sequence(HTTP(), HTTPS()))).View(v)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	switch w.(type) {
 	case map[string]interface{}:
@@ -43,4 +47,30 @@ func main() {
 	}
 
 	fmt.Println(string(o))
+}
+
+// HTTPS doot.
+func HTTPS() *Prism {
+	from := MkP(P{
+		"name":     "https",
+		"port":     443,
+		"protocol": "TCP"})
+	split := func(from *Pattern) (*Pattern, error) {
+		return ConstPattern("https"), nil
+	}
+
+	return &Prism{from, split}
+}
+
+// HTTP doot.
+func HTTP() *Prism {
+	from := MkP(P{
+		"name":     "http",
+		"port":     80,
+		"protocol": "TCP"})
+	split := func(from *Pattern) (*Pattern, error) {
+		return ConstPattern("http"), nil
+	}
+
+	return &Prism{from, split}
 }
