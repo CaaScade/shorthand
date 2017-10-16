@@ -4,7 +4,7 @@ import (
 	//"bytes"
 	//"encoding/json"
 	"fmt"
-	//"github.com/davecgh/go-spew/spew"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
 	"io/ioutil"
@@ -32,6 +32,10 @@ func main() {
 
 	p := MkP(P{"spec": P{"selector": P{"app": nil}}})
 	p.Match(v)
+	if p.HasErrors() {
+		log.Fatal(spew.Sdump(p))
+	}
+
 	p.Erase(v)
 
 	x, err1 := At(p.Extract(), "spec", "selector", "app")
@@ -40,7 +44,10 @@ func main() {
 	}
 
 	q := MkP(P{"spec": P{"app": x}})
-	q.Write(v)
+	_, err = q.Write(v)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	o, err1 := yaml.Marshal(v)
 	if err1 != nil {

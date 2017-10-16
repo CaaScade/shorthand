@@ -36,14 +36,14 @@ type Pattern struct {
 // P is shorthand for Pattern
 type P map[string]interface{}
 
-// Match doot.
+// Match a pattern to an object and capture its values.
 func (p *Pattern) Match(i interface{}) {
 	if p.fields == nil {
 		p.value = i
 	} else if m, ok := i.(map[string]interface{}); ok {
 		matchFields(p.fields, m)
 	} else {
-		p.error = fmt.Errorf("expected map %v", i)
+		p.error = spew.Errorf("expected map (%v)", i)
 	}
 }
 
@@ -155,14 +155,13 @@ func (p *Pattern) Erase(i interface{}) interface{} {
 }
 
 // insertPattern merges the captured fields into an object and returns the result.
-func insertPattern(p *Pattern, i interface{}) interface{} {
+func insertPattern(p *Pattern, i interface{}) (interface{}, error) {
 	if p.fields == nil {
 		switch i.(type) {
 		case AbsentU:
-			return p.value
+			return p.value, nil
 		default:
-			log.Fatal(spew.Sdump("attempted to overwrite", p, i))
-			return i
+			return i, spew.Errorf("attempted to write (%v) over (%v)", p.value, i)
 		}
 	} else {
 		return insertFields(p.fields, i)
@@ -170,7 +169,7 @@ func insertPattern(p *Pattern, i interface{}) interface{} {
 }
 
 // insertFields merges the captured fields into an object and returns the result.
-func insertFields(fs []*Field, i interface{}) interface{} {
+func insertFields(fs []*Field, i interface{}) (interface{}, error) {
 	var m map[string]interface{}
 	switch i.(type) {
 	case AbsentU:
@@ -178,7 +177,7 @@ func insertFields(fs []*Field, i interface{}) interface{} {
 	case map[string]interface{}:
 		m = i.(map[string]interface{})
 	default:
-		log.Fatal(spew.Sdump("expected map or Absent", i))
+		return i, spew.Errorf("expected map or Absent (%v)", i)
 	}
 
 	for _, f := range fs {
@@ -195,7 +194,11 @@ func insertFields(fs []*Field, i interface{}) interface{} {
 		}
 
 		// Get the new value and insert it (if present).
-		v := insertPattern(f.value, v0)
+		v, err := insertPattern(f.value, v0)
+		if err != nil {
+			return i, fmt.Errorf("%s.%v", f.name, err)
+		}
+
 		switch v.(type) {
 		case AbsentU:
 			// Do nothing.
@@ -208,12 +211,27 @@ func insertFields(fs []*Field, i interface{}) interface{} {
 		}
 	}
 
-	return m
+	return m, nil
 }
 
 // Write a pattern to an object. (Modifies the object.)
-func (p *Pattern) Write(i interface{}) interface{} {
+func (p *Pattern) Write(i interface{}) (interface{}, error) {
 	return insertPattern(p, i)
+}
+
+// HasErrors returns true if the pattern didn't Match correctly.
+func (p *Pattern) HasErrors() bool {
+	if p.error != nil {
+		return true
+	}
+
+	for _, f := range p.fields {
+		if f.value.HasErrors() {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Extract captured values from a Pattern.
@@ -256,8 +274,8 @@ func At(i interface{}, ks ...string) (interface{}, error) {
 				"no value for key %s", k)
 		}
 
-		return nil, fmt.Errorf(
-			"expected a map %v", i)
+		return nil, spew.Errorf(
+			"expected a map (%v)", i)
 	}
 
 	return i, nil
