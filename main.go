@@ -4,7 +4,7 @@ import (
 	//"bytes"
 	//"encoding/json"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
+	//"github.com/davecgh/go-spew/spew"
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
 	"io/ioutil"
@@ -25,15 +25,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = pretty.Println(v)
-	if err != nil {
-		log.Fatal(err)
-	}
+	_, _ = pretty.Println(v)
 
-	p := MkP(P{"spec": P{"selector": P{"app": nil}}})
+	p := MkP(P{"spec": P{"selector": P{"app": "nginx"}}})
+	_, _ = pretty.Println(p)
 	p.Match(v)
 	if p.HasErrors() {
-		log.Fatal(spew.Sdump(p))
+		log.Fatal(pretty.Sprint(p))
 	}
 
 	p.Erase(v)

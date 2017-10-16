@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
+	"github.com/kr/pretty"
 	"log"
 )
 
@@ -25,62 +25,80 @@ type Field struct {
 
 // Pattern is either a single hole or a list of named holes.
 type Pattern struct {
-	error error
+	error   error
+	capture interface{}
 
-	/* Field is optional. */
+	/* Option 1. */
+	constant interface{}
+
+	/* Option 2. */
 	fields []*Field
-	/* Field is present IFF !fields */
-	value interface{}
+
+	/* Option 3. */
+	whole bool
+}
+
+// IsConstant doot.
+func (p *Pattern) IsConstant() bool {
+	switch p.constant.(type) {
+	case AbsentU:
+		return false
+	default:
+		return true
+	}
+}
+
+// IsFields doot.
+func (p *Pattern) IsFields() bool {
+	return p.fields != nil
+}
+
+// IsWhole doot.
+func (p *Pattern) IsWhole() bool {
+	return p.whole
 }
 
 // P is shorthand for Pattern
 type P map[string]interface{}
 
-// Match a pattern to an object and capture its values.
-func (p *Pattern) Match(i interface{}) {
-	if p.fields == nil {
-		p.value = i
-	} else if m, ok := i.(map[string]interface{}); ok {
-		matchFields(p.fields, m)
-	} else {
-		p.error = spew.Errorf("expected map (%v)", i)
-	}
+// ConstPattern doot.
+func ConstPattern(i interface{}) *Pattern {
+	return &Pattern{nil, Absent, i, nil, false}
 }
 
-// MatchFields doot.
-func matchFields(fs []*Field, m map[string]interface{}) {
-	for _, f := range fs {
-		f.Match(m)
-	}
-}
-
-// Match doot.
-func (f *Field) Match(m map[string]interface{}) {
-	if v, ok := m[f.name]; ok {
-		f.value.Match(v)
-	} else {
-		f.value.Match(Absent)
-	}
-}
-
-// MkPattern doot.
-func MkPattern(fs ...*Field) *Pattern {
+// FieldsPattern doot.
+func FieldsPattern(fs ...*Field) *Pattern {
 	// If no fields, then match the whole structure.
 
 	// Fields should not have overlapping names.
 	// TODO: Verify that ^
-	return &Pattern{nil, fs, nil}
+	return &Pattern{nil, Absent, Absent, fs, false}
+}
+
+// WholePattern doot.
+func WholePattern() *Pattern {
+	return &Pattern{nil, Absent, Absent, nil, true}
 }
 
 // ValPattern doot.
 func ValPattern(i interface{}) *Pattern {
-	return &Pattern{nil, nil, i}
+	return &Pattern{nil, i, Absent, nil, true}
 }
 
-// MkField doot.
-func MkField(name string, fs ...*Field) *Field {
+// ConstField doot.
+func ConstField(name string, i interface{}) *Field {
+	return &Field{name, ConstPattern(i)}
+}
+
+// FieldsField doot.
+func FieldsField(name string, fs ...*Field) *Field {
 	// If no fields, then match the whole structure.
-	return &Field{name, MkPattern(fs...)}
+	return &Field{name, FieldsPattern(fs...)}
+}
+
+// WholeField doot.
+func WholeField(name string) *Field {
+	return &Field{name, WholePattern()}
 }
 
 // ValField doot.
@@ -96,14 +114,51 @@ func MkP(p P) *Pattern {
 		switch v.(type) {
 		case P:
 			f = &Field{name, MkP(v.(P))}
-		default:
+		case AbsentU:
 			f = ValField(name, v)
+		default:
+			f = ConstField(name, v)
 		}
 
 		fs = append(fs, f)
 	}
 
-	return MkPattern(fs...)
+	return FieldsPattern(fs...)
+}
+
+// Match a pattern to an object and capture its values.
+func (p *Pattern) Match(i interface{}) {
+	switch {
+	case p.IsConstant():
+		p.capture = i
+		if p.constant != i {
+			p.error = fmt.Errorf(
+				"constant and capture do not match")
+		}
+	case p.IsFields():
+		p.matchFields(i)
+	case p.IsWhole():
+		p.capture = i
+	}
+}
+
+func (p *Pattern) matchFields(i interface{}) {
+	if m, ok := i.(map[string]interface{}); ok {
+		for _, f := range p.fields {
+			f.match(m)
+		}
+	} else {
+		p.error = fmt.Errorf("expected map")
+		p.capture = i
+	}
+}
+
+func (f *Field) match(m map[string]interface{}) {
+	if v, ok := m[f.name]; ok {
+		f.value.Match(v)
+	} else {
+		f.value.Match(Absent)
+	}
 }
 
 // removeFields - remove the matched structure from the nested map.
@@ -127,26 +182,31 @@ func removeFields(fs []*Field, m map[string]interface{}) interface{} {
 	return Absent
 }
 
+// TODO: removal methods (Erase) should also capture errors?
+//   i.e. if the pattern doesn't need to match perfectly
+
 // removeField - remove a field from this map.
 func removeField(f *Field, m map[string]interface{}) {
 	if v, ok := m[f.name]; ok {
 		m[f.name] = removePattern(f.value, v)
 	} else {
-		log.Fatal(spew.Sdump("field doesn't match map", f, m))
+		log.Fatal(pretty.Sprint("field doesn't match map", f, m))
 	}
 }
 
 // removePattern removes the captured fields from an object and returns the result.
 func removePattern(p *Pattern, i interface{}) interface{} {
-	if p.fields == nil {
+	if !p.IsFields() {
 		// We're removing the whole thing.
 		return Absent
-	} else if m, ok := i.(map[string]interface{}); ok {
-		return removeFields(p.fields, m)
-	} else {
-		log.Fatal(spew.Sdump("pattern doesn't match object", p, i))
-		return Absent
 	}
+
+	if m, ok := i.(map[string]interface{}); ok {
+		return removeFields(p.fields, m)
+	}
+
+	log.Fatal(pretty.Sprint("pattern doesn't match object", p, i))
+	return Absent
 }
 
 // Erase a Pattern from an object and return the result. (Modifies the object.)
@@ -156,15 +216,32 @@ func (p *Pattern) Erase(i interface{}) interface{} {
 
 // insertPattern merges the captured fields into an object and returns the result.
 func insertPattern(p *Pattern, i interface{}) (interface{}, error) {
-	if p.fields == nil {
-		switch i.(type) {
-		case AbsentU:
-			return p.value, nil
-		default:
-			return i, spew.Errorf("attempted to write (%v) over (%v)", p.value, i)
+	switch {
+	case p.IsConstant():
+		return insertValue(p.constant, i)
+	case p.IsWhole():
+		ii, err := insertValue(p.capture, i)
+		if err == nil {
+			return ii, pretty.Errorf(
+				"unexpected WholePattern (%v)", p)
 		}
-	} else {
+
+		return ii, pretty.Errorf(
+			"unexpected WholePattern (%v), also (%v)", p, err)
+	case p.IsFields():
 		return insertFields(p.fields, i)
+	}
+
+	log.Fatal("Inconceivable!")
+	return i, fmt.Errorf("inconceivable")
+}
+
+func insertValue(v interface{}, i interface{}) (interface{}, error) {
+	switch i.(type) {
+	case AbsentU:
+		return v, nil
+	default:
+		return v, pretty.Errorf("wrote (%v) over (%v)", v, i)
 	}
 }
 
@@ -177,7 +254,7 @@ func insertFields(fs []*Field, i interface{}) (interface{}, error) {
 	case map[string]interface{}:
 		m = i.(map[string]interface{})
 	default:
-		return i, spew.Errorf("expected map or Absent (%v)", i)
+		return i, pretty.Errorf("expected map or Absent (%v)", i)
 	}
 
 	for _, f := range fs {
@@ -239,11 +316,16 @@ func (p *Pattern) Extract() interface{} {
 	switch {
 	case p.error != nil:
 		return p.error
-	case p.fields == nil:
-		return p.value
-	default:
+	case p.IsConstant():
+		return p.constant
+	case p.IsWhole():
+		return p.capture
+	case p.IsFields():
 		return extractFields(p.fields)
 	}
+
+	log.Fatal("Inconceivable!")
+	return Absent
 }
 
 // Extract captured values from a Field.
@@ -274,7 +356,7 @@ func At(i interface{}, ks ...string) (interface{}, error) {
 				"no value for key %s", k)
 		}
 
-		return nil, spew.Errorf(
+		return nil, pretty.Errorf(
 			"expected a map (%v)", i)
 	}
 
