@@ -23,7 +23,9 @@ type WildcardU int
 // Wild is the canonical value of type WildcardU.
 // TODO: Typed wildcards.
 const (
-	Wild WildcardU = iota
+	AnyW WildcardU = iota
+	StringW
+	FloatW
 )
 
 // Field is a named hole.
@@ -64,17 +66,22 @@ func FieldsPattern(fs ...*Field) *Pattern {
 
 	// Fields should not have overlapping names.
 	// TODO: Verify that ^
-	return &Pattern{nil, Absent, fs, Wild}
+	return &Pattern{nil, Absent, fs, AnyW}
 }
 
-// WholePattern doot.
-func WholePattern() *Pattern {
-	return &Pattern{nil, Absent, nil, Wild}
+// AnyPattern doot.
+func AnyPattern() *Pattern {
+	return ConstPattern(AnyW)
 }
 
-// ValPattern has already captured a value.
-func ValPattern(i interface{}) *Pattern {
-	return &Pattern{nil, i, nil, Wild}
+// StringPattern doot.
+func StringPattern() *Pattern {
+	return ConstPattern(StringW)
+}
+
+// FloatPattern doot.
+func FloatPattern() *Pattern {
+	return ConstPattern(FloatW)
 }
 
 // ConstField doot.
@@ -88,14 +95,19 @@ func FieldsField(name string, fs ...*Field) *Field {
 	return &Field{name, FieldsPattern(fs...)}
 }
 
-// WholeField doot.
-func WholeField(name string) *Field {
-	return &Field{name, WholePattern()}
+// AnyField doot.
+func AnyField(name string) *Field {
+	return ConstField(name, AnyW)
 }
 
-// ValField doot.
-func ValField(name string, i interface{}) *Field {
-	return &Field{name, ValPattern(i)}
+// StringField doot.
+func StringField(name string) *Field {
+	return ConstField(name, StringW)
+}
+
+// FloatField doot.
+func FloatField(name string) *Field {
+	return ConstField(name, FloatW)
 }
 
 // MkP doot.
@@ -107,7 +119,7 @@ func MkP(p P) *Pattern {
 		case P:
 			f = &Field{name, MkP(v)}
 		case WildcardU:
-			f = ValField(name, v)
+			f = ConstField(name, v)
 		case int:
 			f = ConstField(name, float64(v))
 		default:
@@ -125,15 +137,31 @@ func (p *Pattern) Match(i interface{}) {
 	if p.IsFields() {
 		p.matchFields(i)
 	} else {
-		switch p.constant.(type) {
+		p.capture = i
+		switch c := p.constant.(type) {
 		case WildcardU:
-			p.capture = i
+			p.checkWildcard(c, i)
 		default:
-			p.capture = i
+			// This path also matches Absent.
 			if !reflect.DeepEqual(p.constant, i) {
 				p.error = fmt.Errorf(
 					"constant and capture don't match")
 			}
+		}
+	}
+}
+
+func (p *Pattern) checkWildcard(w WildcardU, i interface{}) {
+	switch w {
+	case AnyW:
+		// No error
+	case StringW:
+		if _, ok := i.(string); !ok {
+			p.error = pretty.Errorf("expected string (%# v)", i)
+		}
+	case FloatW:
+		if _, ok := i.(float64); !ok {
+			p.error = pretty.Errorf("expected float (%# v)", i)
 		}
 	}
 }
@@ -316,7 +344,7 @@ func (p *Pattern) ExtractString() string {
 		return s
 	}
 
-	log.Fatal("not a string", x)
+	log.Fatal(pretty.Sprintf("not a string (%# v)", x))
 	return ""
 }
 
@@ -516,28 +544,3 @@ func clone(fs []*Field) []*Field {
 
 	return ffs
 }
-
-/*
-// Set doot.
-func Set(m map[string]interface{}, v interface{}, ks ...string) error {
-	l := len(ks)
-	if l > 0 {
-		k := ks[0]
-
-		if l == 1 {
-			m[k] = v
-			return nil
-		}
-
-		mk := m[k]
-
-		if mm, ok := mk.(map[string]interface{}); ok {
-			return Set(mm, v, ks[1:]...)
-		}
-
-		return fmt.Errorf("expected a map %# v", mk)
-	}
-
-	return fmt.Errorf("can't set with zero keys")
-}
-*/

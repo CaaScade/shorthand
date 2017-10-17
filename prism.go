@@ -45,7 +45,7 @@ func Identity() *Prism {
 		return ConstPattern(from.capture), nil
 	}
 
-	return &Prism{ConstPattern(Wild), split}
+	return &Prism{ConstPattern(AnyW), split}
 }
 
 // TaggedError doot.
@@ -79,7 +79,7 @@ func Sequence(ps ...*Prism) *Prism {
 		return ConstPattern(i), nil
 	}
 
-	return &Prism{ConstPattern(Wild), split}
+	return &Prism{ConstPattern(AnyW), split}
 }
 
 // Multiply a prism to apply it to an array.
@@ -109,7 +109,7 @@ func Multiply(p *Prism) *Prism {
 		}
 	}
 
-	return &Prism{ConstPattern(Wild), split}
+	return &Prism{ConstPattern(AnyW), split}
 }
 
 // MergeErrors combines multiple errors into one.

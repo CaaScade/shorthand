@@ -78,17 +78,17 @@ func main() {
 
 // ServicePortsIso doot.
 func ServicePortsIso() *Iso {
-	return ZoomIso(MkP(P{"kind": "Service", "spec": P{"ports": Wild}}),
+	return ZoomIso(MkP(P{"kind": "Service", "spec": P{"ports": AnyW}}),
 		MultiplyIso(Port()))
 }
 
 // Port doot.
 func Port() *Iso {
 	from := MkP(P{
-		"name":     Wild,
-		"port":     Wild,
-		"protocol": Wild})
-	to := ConstPattern(Wild)
+		"name":     StringW,
+		"port":     FloatW,
+		"protocol": StringW})
+	to := ConstPattern(StringW)
 
 	split := func(from *Pattern) (*Pattern, error) {
 		x := from.Extract()
