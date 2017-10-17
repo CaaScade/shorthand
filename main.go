@@ -28,8 +28,8 @@ func main() {
 	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
 	var w interface{}
-	telescope := MkP(P{"kind": "Service", "spec": P{"ports": Wild}})
-	w, err = Zoom(telescope, Multiply(Sequence(HTTP(), HTTPS()))).View(v)
+	iso := ServicePortsIso()
+	w, err = iso.forward.View(v)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,8 +52,7 @@ func main() {
 
 	fmt.Println(string(o))
 
-	w, err = Zoom(telescope,
-		Multiply(Sequence(FromHTTP(), FromHTTPS()))).View(w)
+	w, err = iso.backward.View(w)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,39 +74,19 @@ func main() {
 	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 }
 
-// ServicePorts telescope.
-func ServicePorts() *Pattern {
-	return MkP(P{"kind": "Service", "spec": P{"ports": Wild}})
+// ServicePortsIso doot.
+func ServicePortsIso() *Iso {
+	return ZoomIso(MkP(P{"kind": "Service", "spec": P{"ports": Wild}}),
+		MultiplyIso(Port()))
 }
 
-// HTTPS doot.
-func HTTPS() *Prism {
-	from := MkP(P{
-		"name":     "https",
-		"port":     443,
-		"protocol": "TCP"})
-	split := func(from *Pattern) (*Pattern, error) {
-		return ConstPattern("https"), nil
-	}
-
-	return &Prism{from, split}
-}
-
-// FromHTTPS doot.
-func FromHTTPS() *Prism {
-	from := ConstPattern("https")
-	split := func(from *Pattern) (*Pattern, error) {
-		return MkP(P{
-			"name":     "https",
-			"port":     443,
-			"protocol": "TCP"}), nil
-	}
-
-	return &Prism{from, split}
+// Port doot.
+func Port() *Iso {
+	return SequenceIsos(HTTP(), HTTPS())
 }
 
 // HTTP doot.
-func HTTP() *Prism {
+func HTTP() *Iso {
 	from := MkP(P{
 		"name":     "http",
 		"port":     80,
@@ -116,18 +95,34 @@ func HTTP() *Prism {
 		return ConstPattern("http"), nil
 	}
 
-	return &Prism{from, split}
-}
-
-// FromHTTP doot.
-func FromHTTP() *Prism {
-	from := ConstPattern("http")
-	split := func(from *Pattern) (*Pattern, error) {
+	to := ConstPattern("http")
+	unsplit := func(to *Pattern) (*Pattern, error) {
 		return MkP(P{
 			"name":     "http",
 			"port":     80,
 			"protocol": "TCP"}), nil
 	}
 
-	return &Prism{from, split}
+	return &Iso{&Prism{from, split}, &Prism{to, unsplit}}
+}
+
+// HTTPS doot.
+func HTTPS() *Iso {
+	from := MkP(P{
+		"name":     "https",
+		"port":     443,
+		"protocol": "TCP"})
+	split := func(from *Pattern) (*Pattern, error) {
+		return ConstPattern("https"), nil
+	}
+
+	to := ConstPattern("https")
+	unsplit := func(to *Pattern) (*Pattern, error) {
+		return MkP(P{
+			"name":     "https",
+			"port":     443,
+			"protocol": "TCP"}), nil
+	}
+
+	return &Iso{&Prism{from, split}, &Prism{to, unsplit}}
 }
