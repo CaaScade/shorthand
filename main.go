@@ -4,6 +4,8 @@ import (
 	//"bytes"
 	//"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	//"github.com/davecgh/go-spew/spew"
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
@@ -82,47 +84,74 @@ func ServicePortsIso() *Iso {
 
 // Port doot.
 func Port() *Iso {
-	return SequenceIsos(HTTP(), HTTPS())
-}
-
-// HTTP doot.
-func HTTP() *Iso {
 	from := MkP(P{
-		"name":     "http",
-		"port":     80,
-		"protocol": "TCP"})
+		"name":     Wild,
+		"port":     Wild,
+		"protocol": Wild})
+	to := ConstPattern(Wild)
+
 	split := func(from *Pattern) (*Pattern, error) {
-		return ConstPattern("http"), nil
+		x := from.Extract()
+
+		name := StringAt(x, "name")
+		port := FloatAt(x, "port")
+		protocol := StringAt(x, "protocol")
+
+		if protocol == "TCP" {
+			if name == "http" && port == 80 {
+				return ConstPattern("http"), nil
+			}
+
+			if name == "https" && port == 443 {
+				return ConstPattern("https"), nil
+			}
+
+			return ConstPattern(fmt.Sprintf("%s:%v", name, port)), nil
+		}
+
+		return ConstPattern(fmt.Sprintf("%s:%v:%s", name, port, protocol)), nil
 	}
 
-	to := ConstPattern("http")
 	unsplit := func(to *Pattern) (*Pattern, error) {
-		return MkP(P{
-			"name":     "http",
-			"port":     80,
-			"protocol": "TCP"}), nil
+		x := to.ExtractString()
+		segments := strings.Split(x, ":")
+		l := len(segments)
+
+		var err error
+		var name string
+		var port float64
+		var protocol string
+
+		if l > 0 {
+			name = segments[0]
+		} else {
+			return nil, fmt.Errorf("expected non-empty string")
+		}
+
+		if l > 1 {
+			port, err = strconv.ParseFloat(segments[1], 64)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't parse port (%v)", err)
+			}
+		} else {
+			switch name {
+			case "http":
+				port = 80
+			case "https":
+				port = 443
+			default:
+				return nil, fmt.Errorf("dunno port for %s", name)
+			}
+		}
+
+		if l > 2 {
+			protocol = segments[2]
+		} else {
+			protocol = "TCP"
+		}
+
+		return MkP(P{"name": name, "port": port, "protocol": protocol}), nil
 	}
 
-	return &Iso{&Prism{from, split}, &Prism{to, unsplit}}
-}
-
-// HTTPS doot.
-func HTTPS() *Iso {
-	from := MkP(P{
-		"name":     "https",
-		"port":     443,
-		"protocol": "TCP"})
-	split := func(from *Pattern) (*Pattern, error) {
-		return ConstPattern("https"), nil
-	}
-
-	to := ConstPattern("https")
-	unsplit := func(to *Pattern) (*Pattern, error) {
-		return MkP(P{
-			"name":     "https",
-			"port":     443,
-			"protocol": "TCP"}), nil
-	}
-
-	return &Iso{&Prism{from, split}, &Prism{to, unsplit}}
+	return MkIso(from, to, split, unsplit)
 }

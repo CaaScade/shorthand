@@ -21,6 +21,7 @@ const (
 type WildcardU int
 
 // Wild is the canonical value of type WildcardU.
+// TODO: Typed wildcards.
 const (
 	Wild WildcardU = iota
 )
@@ -307,6 +308,30 @@ func (p *Pattern) HasErrors() bool {
 	return false
 }
 
+// ExtractString convenience method.
+// TODO: With typed wildcards, this shouldn't fail in normal usage.
+func (p *Pattern) ExtractString() string {
+	x := p.Extract()
+	if s, ok := x.(string); ok {
+		return s
+	}
+
+	log.Fatal("not a string", x)
+	return ""
+}
+
+// ExtractFloat convenience method.
+// TODO: With typed wildcards, this shouldn't fail in normal usage.
+func (p *Pattern) ExtractFloat() float64 {
+	x := p.Extract()
+	if f, ok := x.(float64); ok {
+		return f
+	}
+
+	log.Fatal("not a float", x)
+	return -12345
+}
+
 // Extract captured values from a Pattern.
 func (p *Pattern) Extract() interface{} {
 	switch {
@@ -334,7 +359,7 @@ func extractFields(fs []*Field) map[string]interface{} {
 	return m
 }
 
-// At doot.
+// At should always succeed. An error probably means programmer error.
 func At(i interface{}, ks ...string) (interface{}, error) {
 	if len(ks) > 0 {
 		k := ks[0]
@@ -352,6 +377,40 @@ func At(i interface{}, ks ...string) (interface{}, error) {
 	}
 
 	return i, nil
+}
+
+// StringAt convenience method.
+// In normal use, it could fail if the pattern matched something other than a string.
+func StringAt(i interface{}, ks ...string) string {
+	s, err := At(i, ks...)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	switch s := s.(type) {
+	case string:
+		return s
+	default:
+		log.Fatal("expected string", s)
+		return ""
+	}
+}
+
+// FloatAt convenience method.
+// In normal use, it could fail if the pattern matched something other than a float64.
+func FloatAt(i interface{}, ks ...string) float64 {
+	s, err := At(i, ks...)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	switch s := s.(type) {
+	case float64:
+		return s
+	default:
+		log.Fatal("expected float64", s)
+		return -12345
+	}
 }
 
 // WildcardPath doot.

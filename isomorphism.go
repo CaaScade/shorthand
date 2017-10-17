@@ -38,3 +38,8 @@ func SequenceIsos(is ...*Iso) *Iso {
 
 	return &Iso{Sequence(fs...), Sequence(bs...)}
 }
+
+// MkIso doot.
+func MkIso(from *Pattern, to *Pattern, split func(*Pattern) (*Pattern, error), unsplit func(*Pattern) (*Pattern, error)) *Iso {
+	return &Iso{&Prism{from, split}, &Prism{to, unsplit}}
+}
