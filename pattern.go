@@ -41,9 +41,10 @@ type Pattern struct {
 	capture interface{}
 
 	/* Option 1. */
-	fields []*Field
+	fields    []*Field
+	exclusive bool // !(Does it count as a match if other fields are present?)
 
-	/* Option 2. */
+	/* Option 2. Used if Option 1 is nil. */
 	constant interface{}
 }
 
@@ -52,21 +53,27 @@ func (p *Pattern) IsFields() bool {
 	return p.fields != nil
 }
 
-// P is shorthand for Pattern
+// P is shorthand for "Partial" Pattern
 type P map[string]interface{}
+
+// XP is shorthand for "Exclusive" Pattern
+type XP map[string]interface{}
 
 // ConstPattern doot.
 func ConstPattern(i interface{}) *Pattern {
-	return &Pattern{nil, Absent, nil, i}
+	return &Pattern{nil, Absent, nil, false, i}
 }
 
 // FieldsPattern doot.
-func FieldsPattern(fs ...*Field) *Pattern {
-	// If no fields, then match the whole structure.
+func FieldsPattern(exclusive bool, fs ...*Field) *Pattern {
+	// If no fields, then why are we here?
+	if len(fs) == 0 {
+		log.Fatal("no fields for FieldsPattern")
+	}
 
 	// Fields should not have overlapping names.
 	// TODO: Verify that ^
-	return &Pattern{nil, Absent, fs, AnyW}
+	return &Pattern{nil, Absent, fs, exclusive, AnyW}
 }
 
 // AnyPattern doot.
@@ -90,9 +97,9 @@ func ConstField(name string, i interface{}) *Field {
 }
 
 // FieldsField doot.
-func FieldsField(name string, fs ...*Field) *Field {
+func FieldsField(name string, exclusive bool, fs ...*Field) *Field {
 	// If no fields, then match the whole structure.
-	return &Field{name, FieldsPattern(fs...)}
+	return &Field{name, FieldsPattern(exclusive, fs...)}
 }
 
 // AnyField doot.
@@ -111,25 +118,28 @@ func FloatField(name string) *Field {
 }
 
 // MkP doot.
-func MkP(p P) *Pattern {
-	fs := make([]*Field, 0, len(p))
-	for name, v := range p {
-		var f *Field
-		switch v := v.(type) {
-		case P:
-			f = &Field{name, MkP(v)}
-		case WildcardU:
-			f = ConstField(name, v)
-		case int:
-			f = ConstField(name, float64(v))
-		default:
-			f = ConstField(name, v)
-		}
+func MkP(p interface{}) *Pattern {
+	switch p := p.(type) {
+	case P:
+		return MkFields(p, false)
+	case XP:
+		return MkFields(p, true)
+	case int:
+		return ConstPattern(float64(p))
+	default:
+		return ConstPattern(p)
+	}
+}
 
+// MkFields doot.
+func MkFields(m map[string]interface{}, exclusive bool) *Pattern {
+	fs := make([]*Field, 0, len(m))
+	for name, v := range m {
+		f := &Field{name, MkP(v)}
 		fs = append(fs, f)
 	}
 
-	return FieldsPattern(fs...)
+	return FieldsPattern(exclusive, fs...)
 }
 
 // Match a pattern to an object and capture its values.
@@ -170,6 +180,20 @@ func (p *Pattern) matchFields(i interface{}) {
 	if m, ok := i.(map[string]interface{}); ok {
 		for _, f := range p.fields {
 			f.match(m)
+		}
+
+		if p.exclusive {
+			ks := make(map[string]bool, len(p.fields))
+			for _, f := range p.fields {
+				ks[f.name] = true
+			}
+
+			for k := range m {
+				if _, ok := ks[k]; !ok {
+					p.error = fmt.Errorf("extraneous fields for exclusive pattern")
+					p.capture = m
+				}
+			}
 		}
 	} else {
 		p.error = fmt.Errorf("expected map")
@@ -528,7 +552,7 @@ func setConst(fs []*Field, k string, v interface{}, ks []string) error {
 
 // Clone doot.
 func (p *Pattern) Clone() *Pattern {
-	return &Pattern{p.error, p.capture, clone(p.fields), p.constant}
+	return &Pattern{p.error, p.capture, clone(p.fields), p.exclusive, p.constant}
 }
 
 func clone(fs []*Field) []*Field {
