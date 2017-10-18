@@ -10,7 +10,16 @@ import (
 	"strings"
 )
 
-func main() {
+func steal() {
+	inputDir := os.Args[1]
+	outputDir := os.Args[2]
+	err := StealYamlFiles(inputDir, outputDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func check() {
 	inputDir := os.Args[1]
 	outputDir := os.Args[2]
 	failDir := os.Args[3]
@@ -42,6 +51,11 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+}
+
+func main() {
+	//steal()
+	check()
 }
 
 // ServicePortsIso doot.
