@@ -30,7 +30,7 @@ func main() {
 	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
 	var w interface{}
-	iso := ServicePortsIso()
+	iso := SequenceIsos(ServicePortsIso(), IdentityIso())
 	w, err = iso.forward.View(v)
 	if err != nil {
 		log.Fatal(err)

@@ -39,8 +39,8 @@ func (p *Prism) View(i interface{}) (interface{}, error) {
 	return i, nil
 }
 
-// Identity prism.
-func Identity() *Prism {
+// IdentityPrism .
+func IdentityPrism() *Prism {
 	split := func(from *Pattern) (*Pattern, error) {
 		return ConstPattern(from.capture), nil
 	}
@@ -48,16 +48,16 @@ func Identity() *Prism {
 	return &Prism{ConstPattern(AnyW), split}
 }
 
-// TaggedError doot.
+// TaggedError .
 type TaggedError struct {
 	tag   interface{}
 	error error
 }
 
-// Sequence doot.
-func Sequence(ps ...*Prism) *Prism {
+// SequencePrisms .
+func SequencePrisms(ps ...*Prism) *Prism {
 	if len(ps) == 0 {
-		return Identity()
+		return IdentityPrism()
 	}
 
 	split := func(from *Pattern) (*Pattern, error) {
@@ -82,8 +82,8 @@ func Sequence(ps ...*Prism) *Prism {
 	return &Prism{ConstPattern(AnyW), split}
 }
 
-// Multiply a prism to apply it to an array.
-func Multiply(p *Prism) *Prism {
+// MultiplyPrism multiply a prism to use it on an array.
+func MultiplyPrism(p *Prism) *Prism {
 	split := func(from *Pattern) (*Pattern, error) {
 		errs := []*TaggedError{}
 		i := from.capture
@@ -112,7 +112,7 @@ func Multiply(p *Prism) *Prism {
 	return &Prism{ConstPattern(AnyW), split}
 }
 
-// MergeErrors combines multiple errors into one.
+// MergeErrors combine multiple errors into one.
 // TODO: Actually merge the errors.
 func MergeErrors(errs []*TaggedError) error {
 	if len(errs) > 0 {
@@ -122,8 +122,8 @@ func MergeErrors(errs []*TaggedError) error {
 	return nil
 }
 
-// Zoom doot.
-func Zoom(telescope *Pattern, p *Prism) *Prism {
+// ZoomPrism look through a telescope with a prism.
+func ZoomPrism(telescope *Pattern, p *Prism) *Prism {
 	ks, err := telescope.WildcardPath()
 	if err != nil {
 		log.Fatal(pretty.Sprint("not a telescope", telescope))

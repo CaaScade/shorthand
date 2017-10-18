@@ -13,17 +13,17 @@ type Iso struct {
 
 // IdentityIso doot.
 func IdentityIso() *Iso {
-	return &Iso{Identity(), Identity()}
+	return &Iso{IdentityPrism(), IdentityPrism()}
 }
 
 // ZoomIso doot.
 func ZoomIso(telescope *Pattern, i *Iso) *Iso {
-	return &Iso{Zoom(telescope, i.forward), Zoom(telescope, i.backward)}
+	return &Iso{ZoomPrism(telescope, i.forward), ZoomPrism(telescope, i.backward)}
 }
 
 // MultiplyIso doot.
 func MultiplyIso(i *Iso) *Iso {
-	return &Iso{Multiply(i.forward), Multiply(i.backward)}
+	return &Iso{MultiplyPrism(i.forward), MultiplyPrism(i.backward)}
 }
 
 // SequenceIsos doot.
@@ -36,7 +36,7 @@ func SequenceIsos(is ...*Iso) *Iso {
 		bs[ix] = i.backward
 	}
 
-	return &Iso{Sequence(fs...), Sequence(bs...)}
+	return &Iso{SequencePrisms(fs...), SequencePrisms(bs...)}
 }
 
 // MkIso doot.
