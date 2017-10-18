@@ -2,9 +2,10 @@ package main
 
 import (
 	"bytes"
+	"io/ioutil"
+
 	"github.com/ghodss/yaml"
 	"github.com/kr/pretty"
-	"io/ioutil"
 )
 
 // ReadYamls read a yaml file of potentially multiple documents.

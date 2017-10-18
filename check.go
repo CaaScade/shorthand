@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/koki/shorthand/ast"
 	"path/filepath"
+
+	"github.com/koki/shorthand/ast"
 )
 
 // RoundTrip try to round-trip a file through the isomorphism.

@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/koki/shorthand/ast"
-	"github.com/kr/pretty"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	log "github.com/koki/printline"
+	"github.com/koki/shorthand/ast"
+	"github.com/kr/pretty"
 )
 
 func steal() {

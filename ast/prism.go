@@ -1,8 +1,8 @@
 package ast
 
 import (
+	log "github.com/koki/printline"
 	"github.com/kr/pretty"
-	"log"
 )
 
 // Prism knows how to split from one pattern to another (possibly multiple)

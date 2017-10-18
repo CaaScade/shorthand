@@ -2,9 +2,10 @@ package ast
 
 import (
 	"fmt"
-	"github.com/kr/pretty"
-	"log"
 	"reflect"
+
+	log "github.com/koki/printline"
+	"github.com/kr/pretty"
 )
 
 // Using "U" to indicate "unboxed" types.
@@ -380,7 +381,7 @@ func (p *Pattern) ExtractFloat() float64 {
 		return f
 	}
 
-	log.Fatal("not a float", x)
+	log.Fatal(pretty.Sprintf("not a float (%# v)", x))
 	return -12345
 }
 
@@ -443,7 +444,7 @@ func StringAt(i interface{}, ks ...string) string {
 	case string:
 		return s
 	default:
-		log.Fatal("expected string", s)
+		log.Fatal(pretty.Sprintf("expected string (%s)", s))
 		return ""
 	}
 }
@@ -460,7 +461,7 @@ func FloatAt(i interface{}, ks ...string) float64 {
 	case float64:
 		return s
 	default:
-		log.Fatal("expected float64", s)
+		log.Fatal(pretty.Sprintf("expected float64 (%# v)", s))
 		return -12345
 	}
 }
