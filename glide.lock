@@ -1,16 +1,18 @@
-hash: 85cc12abe026f2dfe35f1c3d2768782ec9bfff4aaa6fe320aaf558a402bf1972
-updated: 2017-10-15T17:17:33.080921352-07:00
+hash: 099df1e55beb77a89e8be53f2042db8386f96fcb145fda2ba22cddc2a2078713
+updated: 2017-10-18T14:36:14.10984457-07:00
 imports:
 - name: github.com/davecgh/go-spew
   version: 346938d642f2ec3594ed81d874461961cd0faa76
-  subpackages:
-  - spew
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
 - name: github.com/kr/pretty
   version: cfb55aafdaf3ec08f0db22699ab822c50091b1c4
 - name: github.com/kr/text
   version: 7cafcd837844e784b526369c9bce262804aebc60
+- name: github.com/spf13/cobra
+  version: 7b2c5ac9fc04fc5efafb60700713d4fa609b777b
+  subpackages:
+  - cobra
 - name: gopkg.in/yaml.v2
   version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
 testImports: []
