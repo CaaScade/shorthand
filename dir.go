@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -30,4 +31,15 @@ func InsertBeforeExt(path string, tag string) string {
 	lext := len(ext)
 	lpath := len(path)
 	return path[:lpath-lext] + tag + ext
+}
+
+// MkdirWriteFile write a file and create any parent directories along the path.
+func MkdirWriteFile(path string, contents []byte) error {
+	dir, _ := filepath.Split(path)
+	err := os.MkdirAll(dir, 0777)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(path, contents, 0644)
 }

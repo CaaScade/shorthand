@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"path/filepath"
 )
 
@@ -107,11 +106,9 @@ func WriteResults(
 	}
 
 	outPath := filepath.Join(outDir, relPath)
-	return ioutil.WriteFile(outPath, []byte(transformed), 0644)
+	return MkdirWriteFile(outPath, []byte(transformed))
 }
 
 func writeResults(path string, tag string, contents string) error {
-	return ioutil.WriteFile(
-		InsertBeforeExt(path, tag),
-		[]byte(contents), 0644)
+	return MkdirWriteFile(InsertBeforeExt(path, tag), []byte(contents))
 }
