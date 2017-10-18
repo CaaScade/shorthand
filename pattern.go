@@ -474,7 +474,7 @@ func (p *Pattern) WildcardPath() ([]string, error) {
 
 	l := len(r)
 
-	ks := make([]string, l, l)
+	ks := make([]string, l)
 	for i, k := range r {
 		ks[l-i-1] = k
 	}
@@ -560,8 +560,7 @@ func clone(fs []*Field) []*Field {
 		return nil
 	}
 
-	l := len(fs)
-	ffs := make([]*Field, l, l)
+	ffs := make([]*Field, len(fs))
 	for i, f := range fs {
 		ffs[i] = &Field{f.name, f.value.Clone()}
 	}

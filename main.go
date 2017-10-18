@@ -1,79 +1,58 @@
 package main
 
 import (
-	//"bytes"
-	//"encoding/json"
+	"bytes"
 	"fmt"
-	"strconv"
-	"strings"
-	//"github.com/davecgh/go-spew/spew"
-	"github.com/ghodss/yaml"
-	"github.com/kr/pretty"
-	"io/ioutil"
+	//"github.com/kr/pretty"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 )
 
 func main() {
-	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 	inputFile := os.Args[1]
-	content, err := ioutil.ReadFile(inputFile)
+	vs, err := ReadYamls(inputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	v := map[string]interface{}{}
-	err = yaml.Unmarshal(content, &v)
-	if err != nil {
-		log.Fatal(err)
-	}
+	iso := MultiplyIso(SequenceIsos(ServicePortsIso(), IdentityIso()))
+
 	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
-	var w interface{}
-	iso := SequenceIsos(ServicePortsIso(), IdentityIso())
-	w, err = iso.forward.View(v)
+	var ws interface{}
+	ws, err = iso.forward.View(vs)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	switch w.(type) {
-	case map[string]interface{}:
-		// Continue
-	default:
-		log.Fatal(pretty.Sprint(w))
 	}
 
 	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-	var o []byte
 
-	o, err = yaml.Marshal(v)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+	var o *bytes.Buffer
 
-	fmt.Println(string(o))
-
-	w, err = iso.backward.View(w)
+	o, err = WriteYamls(ws)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	switch w.(type) {
-	case map[string]interface{}:
-		// Continue
-	default:
-		log.Fatal(pretty.Sprint(w))
-	}
+	fmt.Println(o.String())
 
 	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-	o, err = yaml.Marshal(v)
+
+	ws, err = iso.backward.View(ws)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(string(o))
 	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+
+	o, err = WriteYamls(ws)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(o.String())
 }
 
 // ServicePortsIso doot.

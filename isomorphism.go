@@ -29,8 +29,8 @@ func MultiplyIso(i *Iso) *Iso {
 // SequenceIsos doot.
 func SequenceIsos(is ...*Iso) *Iso {
 	l := len(is)
-	fs := make([]*Prism, l, l)
-	bs := make([]*Prism, l, l)
+	fs := make([]*Prism, l)
+	bs := make([]*Prism, l)
 	for ix, i := range is {
 		fs[ix] = i.forward
 
