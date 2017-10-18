@@ -66,7 +66,7 @@ func ServicePortsIso() *Iso {
 
 // Port doot.
 func Port() *Iso {
-	from := MkP(P{
+	from := MkP(XP{
 		"name":     StringW,
 		"port":     FloatW,
 		"protocol": StringW})
