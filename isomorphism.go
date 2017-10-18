@@ -33,7 +33,9 @@ func SequenceIsos(is ...*Iso) *Iso {
 	bs := make([]*Prism, l, l)
 	for ix, i := range is {
 		fs[ix] = i.forward
-		bs[ix] = i.backward
+
+		// Compose reverse prisms in reverse order.
+		bs[l-ix-1] = i.backward
 	}
 
 	return &Iso{SequencePrisms(fs...), SequencePrisms(bs...)}
