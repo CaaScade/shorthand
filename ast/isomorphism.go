@@ -1,14 +1,11 @@
-package main
+package ast
 
-import (
-//"github.com/kr/pretty"
-//"log"
-)
+import ()
 
 // Iso doot.
 type Iso struct {
-	forward  *Prism
-	backward *Prism
+	Forward  *Prism
+	Backward *Prism
 }
 
 // IdentityIso doot.
@@ -18,12 +15,12 @@ func IdentityIso() *Iso {
 
 // ZoomIso doot.
 func ZoomIso(telescope *Pattern, i *Iso) *Iso {
-	return &Iso{ZoomPrism(telescope, i.forward), ZoomPrism(telescope, i.backward)}
+	return &Iso{ZoomPrism(telescope, i.Forward), ZoomPrism(telescope, i.Backward)}
 }
 
 // MultiplyIso doot.
 func MultiplyIso(i *Iso) *Iso {
-	return &Iso{MultiplyPrism(i.forward), MultiplyPrism(i.backward)}
+	return &Iso{MultiplyPrism(i.Forward), MultiplyPrism(i.Backward)}
 }
 
 // SequenceIsos doot.
@@ -32,10 +29,10 @@ func SequenceIsos(is ...*Iso) *Iso {
 	fs := make([]*Prism, l)
 	bs := make([]*Prism, l)
 	for ix, i := range is {
-		fs[ix] = i.forward
+		fs[ix] = i.Forward
 
 		// Compose reverse prisms in reverse order.
-		bs[l-ix-1] = i.backward
+		bs[l-ix-1] = i.Backward
 	}
 
 	return &Iso{SequencePrisms(fs...), SequencePrisms(bs...)}

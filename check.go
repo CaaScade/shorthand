@@ -3,11 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/koki/shorthand/ast"
 	"path/filepath"
 )
 
 // RoundTrip try to round-trip a file through the isomorphism.
-func RoundTrip(filename string, iso *Iso) (pristine, transformed, reverted string, err error) {
+func RoundTrip(filename string, iso *ast.Iso) (pristine, transformed, reverted string, err error) {
 	var ws interface{}
 	var b *bytes.Buffer
 
@@ -26,7 +27,7 @@ func RoundTrip(filename string, iso *Iso) (pristine, transformed, reverted strin
 	pristine = b.String()
 
 	// Transformed copy.
-	ws, err = iso.forward.View(ws)
+	ws, err = iso.Forward.View(ws)
 	if err != nil {
 		return
 	}
@@ -39,7 +40,7 @@ func RoundTrip(filename string, iso *Iso) (pristine, transformed, reverted strin
 	transformed = b.String()
 
 	// Reverted copy.
-	ws, err = iso.backward.View(ws)
+	ws, err = iso.Backward.View(ws)
 	if err != nil {
 		return
 	}

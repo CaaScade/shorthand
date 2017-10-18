@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/koki/shorthand/ast"
 	"github.com/kr/pretty"
 	"log"
 	"os"
@@ -28,7 +29,7 @@ func check() {
 		log.Fatal(err)
 	}
 
-	iso := MultiplyIso(SequenceIsos(ServicePortsIso(), IdentityIso()))
+	iso := ast.MultiplyIso(ast.SequenceIsos(ServicePortsIso(), ast.IdentityIso()))
 
 	for _, path := range paths {
 		_, _ = pretty.Println(path)
@@ -59,42 +60,42 @@ func main() {
 }
 
 // ServicePortsIso doot.
-func ServicePortsIso() *Iso {
-	return ZoomIso(MkP(P{"kind": "Service", "spec": P{"ports": AnyW}}),
-		MultiplyIso(Port()))
+func ServicePortsIso() *ast.Iso {
+	return ast.ZoomIso(ast.MkP(ast.P{"kind": "Service", "spec": ast.P{"ports": ast.AnyW}}),
+		ast.MultiplyIso(Port()))
 }
 
 // Port doot.
-func Port() *Iso {
-	from := MkP(XP{
-		"name":     StringW,
-		"port":     FloatW,
-		"protocol": StringW})
-	to := ConstPattern(StringW)
+func Port() *ast.Iso {
+	from := ast.MkP(ast.XP{
+		"name":     ast.StringW,
+		"port":     ast.FloatW,
+		"protocol": ast.StringW})
+	to := ast.ConstPattern(ast.StringW)
 
-	split := func(from *Pattern) (*Pattern, error) {
+	split := func(from *ast.Pattern) (*ast.Pattern, error) {
 		x := from.Extract()
 
-		name := StringAt(x, "name")
-		port := FloatAt(x, "port")
-		protocol := StringAt(x, "protocol")
+		name := ast.StringAt(x, "name")
+		port := ast.FloatAt(x, "port")
+		protocol := ast.StringAt(x, "protocol")
 
 		if protocol == "TCP" {
 			if name == "http" && port == 80 {
-				return ConstPattern("http"), nil
+				return ast.ConstPattern("http"), nil
 			}
 
 			if name == "https" && port == 443 {
-				return ConstPattern("https"), nil
+				return ast.ConstPattern("https"), nil
 			}
 
-			return ConstPattern(fmt.Sprintf("%s:%v", name, port)), nil
+			return ast.ConstPattern(fmt.Sprintf("%s:%v", name, port)), nil
 		}
 
-		return ConstPattern(fmt.Sprintf("%s:%v:%s", name, port, protocol)), nil
+		return ast.ConstPattern(fmt.Sprintf("%s:%v:%s", name, port, protocol)), nil
 	}
 
-	unsplit := func(to *Pattern) (*Pattern, error) {
+	unsplit := func(to *ast.Pattern) (*ast.Pattern, error) {
 		x := to.ExtractString()
 		segments := strings.Split(x, ":")
 		l := len(segments)
@@ -132,8 +133,8 @@ func Port() *Iso {
 			protocol = "TCP"
 		}
 
-		return MkP(P{"name": name, "port": port, "protocol": protocol}), nil
+		return ast.MkP(ast.P{"name": name, "port": port, "protocol": protocol}), nil
 	}
 
-	return MkIso(from, to, split, unsplit)
+	return ast.MkIso(from, to, split, unsplit)
 }
