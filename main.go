@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	//"github.com/kr/pretty"
 	"log"
 	"os"
 	"strconv"
@@ -12,47 +10,12 @@ import (
 
 func main() {
 	inputFile := os.Args[1]
-	vs, err := ReadYamls(inputFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	iso := MultiplyIso(SequenceIsos(ServicePortsIso(), IdentityIso()))
 
-	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-
-	var ws interface{}
-	ws, err = iso.forward.View(vs)
+	err := RoundTrip(inputFile, iso)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-
-	var o *bytes.Buffer
-
-	o, err = WriteYamls(ws)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(o.String())
-
-	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-
-	ws, err = iso.backward.View(ws)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// WHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-
-	o, err = WriteYamls(ws)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(o.String())
 }
 
 // ServicePortsIso doot.
