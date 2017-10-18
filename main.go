@@ -2,19 +2,45 @@ package main
 
 import (
 	"fmt"
+	"github.com/kr/pretty"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
 func main() {
-	inputFile := os.Args[1]
-	iso := MultiplyIso(SequenceIsos(ServicePortsIso(), IdentityIso()))
-
-	err := RoundTrip(inputFile, iso)
+	inputDir := os.Args[1]
+	outputDir := os.Args[2]
+	failDir := os.Args[3]
+	paths, err := YamlPathsInDir(inputDir)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	iso := MultiplyIso(SequenceIsos(ServicePortsIso(), IdentityIso()))
+
+	for _, path := range paths {
+		_, _ = pretty.Println(path)
+		var relPath, pristine, transformed, reverted string
+		pristine, transformed, reverted, err = RoundTrip(path, iso)
+		relPath, err = filepath.Rel(inputDir, path)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = WriteResults(
+			relPath,
+			outputDir,
+			failDir,
+			pristine,
+			transformed,
+			reverted,
+			err)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
