@@ -1,12 +1,14 @@
 hash: 34f5606daa54d2a82da67af61ba283b133433a7b063c1e23639e24c479c2f9ba
-updated: 2017-10-18T16:12:30.508560943-07:00
+updated: 2017-10-18T18:09:00.998826794-07:00
 imports:
 - name: github.com/davecgh/go-spew
   version: 346938d642f2ec3594ed81d874461961cd0faa76
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/koki/printline
-  version: 80c375975dbff20a1b7c210564da17f6af2e1c0b
+  version: 53a1360783ee29c55cc1b8b93b8cee1c4beaa874
 - name: github.com/kr/pretty
   version: cfb55aafdaf3ec08f0db22699ab822c50091b1c4
 - name: github.com/kr/text
@@ -15,6 +17,8 @@ imports:
   version: 7b2c5ac9fc04fc5efafb60700713d4fa609b777b
   subpackages:
   - cobra
+- name: github.com/spf13/pflag
+  version: 1f33b80956cde38911d1f23d764deb8d77a649ce
 - name: gopkg.in/yaml.v2
-  version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
+  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
 testImports: []
