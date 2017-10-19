@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -ax
+
+CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o shorthand
+
+docker build -t koki/shorthand:$(git rev-parse --short HEAD) .
+
+echo "Built image succesfully!  koki/shorthand:$(git rev-parse --short HEAD)"
