@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/koki/shorthand/ast"
+	"github.com/koki/shorthand/fs"
 )
 
 // RoundTrip try to round-trip a file through the isomorphism.
@@ -14,13 +15,13 @@ func RoundTrip(filename string, iso *ast.Iso) (pristine, transformed, reverted s
 	var b *bytes.Buffer
 
 	// Load from file.
-	ws, err = ReadYamls(filename)
+	ws, err = fs.ReadYamls(filename)
 	if err != nil {
 		return
 	}
 
 	// Pristine copy.
-	b, err = WriteYamls(ws)
+	b, err = fs.WriteYamls(ws)
 	if err != nil {
 		return
 	}
@@ -33,7 +34,7 @@ func RoundTrip(filename string, iso *ast.Iso) (pristine, transformed, reverted s
 		return
 	}
 
-	b, err = WriteYamls(ws)
+	b, err = fs.WriteYamls(ws)
 	if err != nil {
 		return
 	}
@@ -46,7 +47,7 @@ func RoundTrip(filename string, iso *ast.Iso) (pristine, transformed, reverted s
 		return
 	}
 
-	b, err = WriteYamls(ws)
+	b, err = fs.WriteYamls(ws)
 	if err != nil {
 		return
 	}
@@ -108,9 +109,9 @@ func WriteResults(
 	}
 
 	outPath := filepath.Join(outDir, relPath)
-	return MkdirWriteFile(outPath, []byte(transformed))
+	return fs.MkdirWriteFile(outPath, []byte(transformed))
 }
 
 func writeResults(path string, tag string, contents string) error {
-	return MkdirWriteFile(InsertBeforeExt(path, tag), []byte(contents))
+	return fs.MkdirWriteFile(fs.InsertBeforeExt(path, tag), []byte(contents))
 }
