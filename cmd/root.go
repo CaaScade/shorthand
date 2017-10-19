@@ -59,7 +59,9 @@ func applyIso(forward bool, inputDir, outputDir, failureDir string) error {
 	for _, path := range paths {
 		_, _ = pretty.Println(path)
 		var relPath, pristine, transformed, reverted string
-		pristine, transformed, reverted, err = RoundTrip(path, iso)
+		var roundTripErr error
+		pristine, transformed, reverted, roundTripErr = RoundTrip(path, iso)
+
 		relPath, err = filepath.Rel(inputDir, path)
 		if err != nil {
 			return err
@@ -72,7 +74,8 @@ func applyIso(forward bool, inputDir, outputDir, failureDir string) error {
 			pristine,
 			transformed,
 			reverted,
-			err)
+			roundTripErr)
+
 		if err != nil {
 			return err
 		}

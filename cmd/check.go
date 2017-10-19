@@ -29,7 +29,7 @@ func RoundTrip(filename string, iso *ast.Iso) (pristine, transformed, reverted s
 	pristine = b.String()
 
 	// Transformed copy.
-	ws, err = iso.Forward.View(ws)
+	ws, err = ast.MultiplyTransform(iso.Forward)(ws)
 	if err != nil {
 		return
 	}
@@ -42,7 +42,7 @@ func RoundTrip(filename string, iso *ast.Iso) (pristine, transformed, reverted s
 	transformed = b.String()
 
 	// Reverted copy.
-	ws, err = iso.Backward.View(ws)
+	ws, err = ast.MultiplyTransform(iso.Backward)(ws)
 	if err != nil {
 		return
 	}

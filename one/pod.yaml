@@ -1,0 +1,27 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: postgresql-master
+spec:
+  affinity: 
+    nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                key: zone
+                operator: eq    
+                values:
+                  - AZ1
+  containers:
+    - name: master-container
+      image: wlan0/postgresql-master:v0.1
+      volumeMounts:
+        - mountPath: /postgresql
+          name: masterPV
+    - name: master-sidecar
+      image: wlan0/postgresql-sidecar:v0.1
+  volumes:
+    - name: masterPV
+      awsElasticBlockStore:
+        volumeID: <awsVolumeID>
+        fsType: ext4

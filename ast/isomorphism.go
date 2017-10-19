@@ -1,49 +1,62 @@
 package ast
 
-import ()
+import (
+	"fmt"
+)
+
+// Transform .
+type Transform func(interface{}) (interface{}, error)
 
 // Iso doot.
 type Iso struct {
-	Forward  *Prism
-	Backward *Prism
+	Forward  Transform
+	Backward Transform
 }
 
-// IdentityIso doot.
-func IdentityIso() *Iso {
-	return &Iso{IdentityPrism(), IdentityPrism()}
+// IdentityIso identity isomorphism.
+var IdentityIso = &Iso{IdentityTransform, IdentityTransform}
+
+// IdentityTransform identity transform.
+func IdentityTransform(i interface{}) (interface{}, error) {
+	return i, nil
 }
 
-// ZoomIso doot.
-func ZoomIso(telescope *Pattern, i *Iso) *Iso {
-	return &Iso{ZoomPrism(telescope, i.Forward), ZoomPrism(telescope, i.Backward)}
+// FlipIso flip "forward" and "backward" directions.
+func FlipIso(iso *Iso) *Iso {
+	return &Iso{iso.Forward, iso.Backward}
 }
 
-// MultiplyIso doot.
-func MultiplyIso(i *Iso) *Iso {
-	return &Iso{MultiplyPrism(i.Forward), MultiplyPrism(i.Backward)}
-}
+// MultiplyTransform multiply a transform to apply it to many objects.
+func MultiplyTransform(transform Transform) Transform {
+	return func(objs interface{}) (interface{}, error) {
+		switch objs := objs.(type) {
+		case []interface{}:
+			for ix, obj := range objs {
+				newObj, err := transform(obj)
+				if err == nil {
+					objs[ix] = newObj
+				}
+			}
 
-// SequenceIsos doot.
-func SequenceIsos(is ...*Iso) *Iso {
-	l := len(is)
-	fs := make([]*Prism, l)
-	bs := make([]*Prism, l)
-	for ix, i := range is {
-		fs[ix] = i.Forward
-
-		// Compose reverse prisms in reverse order.
-		bs[l-ix-1] = i.Backward
+			return objs, nil
+		default:
+			return nil, fmt.Errorf(
+				"multiply root wasn't a slice")
+		}
 	}
-
-	return &Iso{SequencePrisms(fs...), SequencePrisms(bs...)}
 }
 
-// MkIso doot.
-func MkIso(from *Pattern, to *Pattern, split func(*Pattern) (*Pattern, error), unsplit func(*Pattern) (*Pattern, error)) *Iso {
-	return &Iso{&Prism{from, split}, &Prism{to, unsplit}}
-}
+/*
+func SequenceTransforms(transforms ...Transform) Transform {
+	return func(i interface{}) (interface{}, error) {
+		//var j map[string]interface{}
+		//var err error
+		for _, transform := range transforms {
+			j, err := transform(i)
+			if err == nil {
 
-// FlipIso reverse the direction of an isomorphism.
-func FlipIso(i *Iso) *Iso {
-	return &Iso{i.Backward, i.Forward}
+			}
+		}
+	}
 }
+*/
