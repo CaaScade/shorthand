@@ -32,9 +32,12 @@ func load() {
 	//pkg := program.InitialPackages()[0]
 	//PrintImportSpecs(program)
 
-	context := ContextForType(program, "k8s.io/api/core/v1", "Pod")
-	//context := ContextForPackageAndType(program, program.InitialPackages()[0], "Pod")
-	context.Print(0)
+	//context := ContextForType(program, "k8s.io/api/core/v1", "Pod")
+	contexts := ContextsForPackage(program, program.InitialPackages()[0])
+
+	for _, context := range contexts {
+		context.Print(0)
+	}
 
 	fmt.Println("yes, hello")
 }
@@ -105,6 +108,27 @@ func ContextForPackageAndType(program *loader.Program, pkg *loader.PackageInfo, 
 	}
 
 	return nil
+}
+
+func ContextsForPackage(program *loader.Program, pkg *loader.PackageInfo) []*Context {
+	contexts := []*Context{}
+	for _, file := range pkg.Files {
+		for _, decl := range file.Decls {
+			switch decl := decl.(type) {
+			case *ast.GenDecl:
+				if decl.Tok == token.TYPE {
+					for _, spec := range decl.Specs {
+						switch spec := spec.(type) {
+						case *ast.TypeSpec:
+							contexts = append(contexts, &Context{Program: program, Package: pkg, File: file, TypeSpec: spec})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return contexts
 }
 
 func (context *Context) RefocusedWithinPackage(typeSpec *ast.TypeSpec) *Context {
