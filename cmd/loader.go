@@ -49,6 +49,8 @@ type SourceField struct {
 	// Name of the field in the source object.
 	Name string
 	// The type information of this field.
+	// The important information here is whether the type needs a
+	//   nil check before its subfields are accessed.
 	TypeExpr ast.Expr
 	// A Context focused on the struct this field is part of.
 	// This is used to interpret TypeExpr properly.
@@ -71,10 +73,12 @@ type MappedField struct {
 	OriginPath []*SourceField
 }
 
+// MappedStruct is a new struct type created by moving around the fields of
+//   a source struct.
 type MappedStruct struct {
 	// Name of the new struct type.
 	Name string
-	// A mapp
+	// The fields of this struct.
 	Fields []*MappedField
 }
 
@@ -86,6 +90,9 @@ type Context struct {
 	// Package is an entire loaded package.
 	Package *loader.PackageInfo
 	// File is a file in the Package.
+	// The file matters because the local name of an import is
+	//   file-specific. This is how we resolve Selector expressions.
+	//   e.g. metav1.ObjectMeta
 	File *ast.File
 	// TypeSpec is a type definition in the File.
 	TypeSpec *ast.TypeSpec
@@ -325,6 +332,8 @@ func (context *Context) PrintType(depth int, root ast.Expr) {
 		context.PrintType(depth, root.Value)
 	case *ast.InterfaceType:
 		fmt.Println(indents[depth], "interface")
+	default:
+		glog.Fatal(pretty.Printf("non-type expr (%# v)", root))
 	}
 }
 
