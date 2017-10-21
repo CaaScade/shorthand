@@ -1,5 +1,8 @@
 package cmd
 
+// This file contains methods for recursively inspecting a type definition
+//   and a Print() method to test their implementation.
+
 import (
 	"fmt"
 	"go/ast"
@@ -13,28 +16,27 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+// load a package and traverse all its types.
 func load() {
-	var yolo v1.Pod
-	pretty.Println("yolo", yolo)
+	// Just so the compiler doesn't complain about not using "v1".
+	var dummy v1.Pod
+	_ = dummy.Spec
 
 	var conf loader.Config
 
-	// Add "runtime" to the set of packages to be loaded.
+	// We're just loading "v1" (and then all its dependencies).
 	conf.Import("k8s.io/api/core/v1")
-
-	// Finally, load all the packages specified by the configuration.
 	program, err := conf.Load()
 
+	// If we're missing dependencies or our "v1" is otherwise broken, quit.
 	if err != nil {
 		glog.Fatal(err)
 	}
 
-	//pkg := program.InitialPackages()[0]
-	//PrintImportSpecs(program)
-
-	//context := ContextForType(program, "k8s.io/api/core/v1", "Pod")
+	// Create a traversal context for each type definition in "v1".
 	contexts := ContextsForPackage(program, program.InitialPackages()[0])
 
+	// Test the traversal context by printing all fields "recursively".
 	for _, context := range contexts {
 		context.Print(0)
 	}
@@ -42,24 +44,43 @@ func load() {
 	fmt.Println("yes, hello")
 }
 
+// Context is a cursor that indicates our current position in the program.
+// It contains the information needed to understand every part of TypeSpec.
 type Context struct {
-	Program  *loader.Program
-	Package  *loader.PackageInfo
-	File     *ast.File
+	// Program is the entire loaded program.
+	Program *loader.Program
+	// Package is an entire loaded package.
+	Package *loader.PackageInfo
+	// File is a file in the Package.
+	File *ast.File
+	// TypeSpec is a type definition in the File.
 	TypeSpec *ast.TypeSpec
 }
 
+// importMatchesPackage checks if a package corresponds to an import.
+// types.Package uses the actual filesystem path (for non-built-in packages)
+//   e.g. github.com/koki/shorthand/vendor/k8s.io/apimachinery
+//        go/ast
+// ast.ImportSpec uses the quoted string in the source file's import statement.
+//   e.g. "k8s.io/apimachinery" <- with quotes
+//        "go/ast"
 func importMatchesPackage(imprt *ast.ImportSpec, pkg *types.Package) bool {
 	quoted := imprt.Path.Value
 	stripped := quoted[1 : len(quoted)-1]
 	return pathMatchesPackage(stripped, pkg)
 }
 
+// pathMatchesPackage checks if a path corresponds to a given package.
+// pkgPath can be either of two formats:
+//   e.g. github.com/koki/shorthand/vendor/k8s.io/apimachinery (types.Package)
+//   e.g. k8s.io/apimachinery (unquoted ast.ImportSpec)
 func pathMatchesPackage(pkgPath string, pkg *types.Package) bool {
+	// If pkgPath is the long format, then match this way.
 	if pkgPath == pkg.Path() {
 		return true
 	}
 
+	// If pkgPath is the short format, then match this way.
 	if strings.HasSuffix(pkg.Path(), "vendor/"+pkgPath) {
 		return true
 	}
@@ -67,12 +88,18 @@ func pathMatchesPackage(pkgPath string, pkg *types.Package) bool {
 	return false
 }
 
+// ContextForImportedType constructs a context for an import
+//   and the name of a type.
+// It traverses the Program to find the right Package and TypeSpec.
 func ContextForImportedType(program *loader.Program, imprt *ast.ImportSpec, typeName string) *Context {
 	quoted := imprt.Path.Value
 	stripped := quoted[1 : len(quoted)-1]
 	return ContextForType(program, stripped, typeName)
 }
 
+// ContextForType constructs a context for a pkg path (see pathMatchesPackage)
+//   and the name of a type.
+// It traverses the Program to find the right Package and TypeSpec.
 func ContextForType(program *loader.Program, pkgPath, typeName string) *Context {
 	for _, pkg := range program.AllPackages {
 		if !pathMatchesPackage(pkgPath, pkg.Pkg) {
@@ -88,6 +115,8 @@ func ContextForType(program *loader.Program, pkgPath, typeName string) *Context 
 	return nil
 }
 
+// ContextForPackageAndType constructs a context for a package and the name of a type.
+// It traverses only the given package to find the right TypeSpec.
 func ContextForPackageAndType(program *loader.Program, pkg *loader.PackageInfo, typeName string) *Context {
 	for _, file := range pkg.Files {
 		for _, decl := range file.Decls {
@@ -110,6 +139,8 @@ func ContextForPackageAndType(program *loader.Program, pkg *loader.PackageInfo, 
 	return nil
 }
 
+// ContextsForPackage traverses an entire package and creates a context for each
+//   type definition it finds.
 func ContextsForPackage(program *loader.Program, pkg *loader.PackageInfo) []*Context {
 	contexts := []*Context{}
 	for _, file := range pkg.Files {
@@ -131,6 +162,11 @@ func ContextsForPackage(program *loader.Program, pkg *loader.PackageInfo) []*Con
 	return contexts
 }
 
+// RefocusedWithinPackage navigates from one type (TypeSpec) to another within
+//   the same package.
+// For example, this would be used to go from inspecting v1.Pod to v1.PodSpec
+//   When we inspect v1.Pod, the Spec field gives us a TypeSpec object for
+//   v1.PodSpec.
 func (context *Context) RefocusedWithinPackage(typeSpec *ast.TypeSpec) *Context {
 	for _, file := range context.Package.Files {
 		for _, decl := range file.Decls {
@@ -150,6 +186,9 @@ func (context *Context) RefocusedWithinPackage(typeSpec *ast.TypeSpec) *Context 
 	return nil
 }
 
+// RefocusedWithSelector navigates from one context to a context in a different package.
+// For example, this would be used to go from v1.Pod to metav1.ObjectMeta.
+//   When we inspect v1.Pod, an anonymous field gives us a Selector for metav1.ObjectMeta.
 func (context *Context) RefocusedWithSelector(selector *ast.SelectorExpr) *Context {
 	var pkgName string
 	switch expr := selector.X.(type) {
@@ -161,10 +200,13 @@ func (context *Context) RefocusedWithSelector(selector *ast.SelectorExpr) *Conte
 
 	typeName := selector.Sel.Name
 
-	return context.RefocusedWithPkgAndTypeNames(pkgName, typeName)
+	return context.refocusedWithPkgAndTypeNames(pkgName, typeName)
 }
 
-func (context *Context) GetImportedPackage(imprt *ast.ImportSpec) *loader.PackageInfo {
+// getImportedPackage traverses the Program to find the Package that matches
+//   a given Import.
+// It's a helper function for refocusedWithPkgAndTypeNames.
+func (context *Context) getImportedPackage(imprt *ast.ImportSpec) *loader.PackageInfo {
 	for _, pkg := range context.Program.AllPackages {
 		if importMatchesPackage(imprt, pkg.Pkg) {
 			return pkg
@@ -174,7 +216,10 @@ func (context *Context) GetImportedPackage(imprt *ast.ImportSpec) *loader.Packag
 	return nil
 }
 
-func (context *Context) RefocusedWithPkgAndTypeNames(pkgName string, typeName string) *Context {
+// refocusedWithPkgAndTypeNames traverses the Program to find a package with
+//   a given name (not the path, but the name used to prefix imported definitions)
+// It's a helper function for RefocusedWithSelector.
+func (context *Context) refocusedWithPkgAndTypeNames(pkgName string, typeName string) *Context {
 	for _, imprt := range context.File.Imports {
 		if imprt.Name != nil {
 			// If the local name matches, look up the type here.
@@ -183,7 +228,7 @@ func (context *Context) RefocusedWithPkgAndTypeNames(pkgName string, typeName st
 			}
 		} else {
 			// If the default name matches, look up the type here.
-			pkg := context.GetImportedPackage(imprt)
+			pkg := context.getImportedPackage(imprt)
 			if pkg.Pkg.Name() == pkgName {
 				return ContextForPackageAndType(context.Program, pkg, typeName)
 			}
@@ -193,6 +238,7 @@ func (context *Context) RefocusedWithPkgAndTypeNames(pkgName string, typeName st
 	return nil
 }
 
+// These (and init()) are just for formatting the Print methods.
 var maxDepth = 40
 var indents = make([]string, maxDepth)
 
@@ -202,6 +248,8 @@ func init() {
 	}
 }
 
+// Print recursively traverses all the fields of a type and prints them.
+// "depth" is the initial indentation depth.
 func (context *Context) Print(depth int) {
 	if context == nil {
 		glog.Fatal()
@@ -211,6 +259,8 @@ func (context *Context) Print(depth int) {
 	context.PrintType(depth+1, context.TypeSpec.Type)
 }
 
+// PrintType prints the contents (RHS) of a type declaration.
+// "depth" is the initial indentation depth.
 func (context *Context) PrintType(depth int, root ast.Expr) {
 	switch root := root.(type) {
 	case *ast.ParenExpr:
@@ -244,6 +294,8 @@ func (context *Context) PrintType(depth int, root ast.Expr) {
 	}
 }
 
+// PrintSelector prints a Selector and the details of the type it represents.
+// "depth" is the initial indentation depth.
 func (context *Context) PrintSelector(depth int, root *ast.SelectorExpr) {
 	var pkgName string
 	switch expr := root.X.(type) {
@@ -259,6 +311,9 @@ func (context *Context) PrintSelector(depth int, root *ast.SelectorExpr) {
 	context.RefocusedWithSelector(root).Print(depth)
 }
 
+// PrintTypeIdent prints a type identifier along with its contents.
+// An Ident either refers to a built-in type or a type within the same Package.
+// "depth" is the initial indentation depth.
 func (context *Context) PrintTypeIdent(depth int, root *ast.Ident) {
 	obj := root.Obj
 	if obj != nil {
@@ -285,6 +340,8 @@ func (context *Context) PrintTypeIdent(depth int, root *ast.Ident) {
 	fmt.Println(indents[depth], root.Name)
 }
 
+// PrintField prints a struct Field and its type information.
+// "depth" is the initial indentation depth.
 func (context *Context) PrintField(depth int, root *ast.Field) {
 	l := len(root.Names)
 	if l > 0 {
