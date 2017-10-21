@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strings"
 
 	"github.com/golang/glog"
@@ -18,13 +19,6 @@ func load() {
 
 	var conf loader.Config
 
-	/*
-		// Use the command-line arguments to specify
-		// a set of initial packages to load from source.
-		// See FromArgsUsage for help.
-		rest, err := conf.FromArgs(os.Args[1:], wantTests)
-	*/
-
 	// Add "runtime" to the set of packages to be loaded.
 	conf.Import("k8s.io/api/core/v1")
 
@@ -36,33 +30,72 @@ func load() {
 	}
 
 	//pkg := program.InitialPackages()[0]
+	//PrintImportSpecs(program)
 
-	context := ContextForType(program, "Pod")
-	fmt.Println(context)
-	context.PrintTypeSpec(0, context.TypeSpec)
+	context := ContextForType(program, "k8s.io/api/core/v1", "Pod")
+	//context := ContextForPackageAndType(program, program.InitialPackages()[0], "Pod")
+	context.Print(0)
 
 	fmt.Println("yes, hello")
 }
 
-type PrintContext struct {
+type Context struct {
 	Program  *loader.Program
+	Package  *loader.PackageInfo
 	File     *ast.File
 	TypeSpec *ast.TypeSpec
 }
 
-func ContextForType(program *loader.Program, typeName string) *PrintContext {
-	for _, pkg := range program.InitialPackages() {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				switch decl := decl.(type) {
-				case *ast.GenDecl:
-					if decl.Tok == token.TYPE {
-						for _, spec := range decl.Specs {
-							switch spec := spec.(type) {
-							case *ast.TypeSpec:
-								if spec.Name.Name == typeName {
-									return &PrintContext{Program: program, File: file, TypeSpec: spec}
-								}
+func importMatchesPackage(imprt *ast.ImportSpec, pkg *types.Package) bool {
+	quoted := imprt.Path.Value
+	stripped := quoted[1 : len(quoted)-1]
+	return pathMatchesPackage(stripped, pkg)
+}
+
+func pathMatchesPackage(pkgPath string, pkg *types.Package) bool {
+	if pkgPath == pkg.Path() {
+		return true
+	}
+
+	if strings.HasSuffix(pkg.Path(), "vendor/"+pkgPath) {
+		return true
+	}
+
+	return false
+}
+
+func ContextForImportedType(program *loader.Program, imprt *ast.ImportSpec, typeName string) *Context {
+	quoted := imprt.Path.Value
+	stripped := quoted[1 : len(quoted)-1]
+	return ContextForType(program, stripped, typeName)
+}
+
+func ContextForType(program *loader.Program, pkgPath, typeName string) *Context {
+	for _, pkg := range program.AllPackages {
+		if !pathMatchesPackage(pkgPath, pkg.Pkg) {
+			continue
+		}
+
+		context := ContextForPackageAndType(program, pkg, typeName)
+		if context != nil {
+			return context
+		}
+	}
+
+	return nil
+}
+
+func ContextForPackageAndType(program *loader.Program, pkg *loader.PackageInfo, typeName string) *Context {
+	for _, file := range pkg.Files {
+		for _, decl := range file.Decls {
+			switch decl := decl.(type) {
+			case *ast.GenDecl:
+				if decl.Tok == token.TYPE {
+					for _, spec := range decl.Specs {
+						switch spec := spec.(type) {
+						case *ast.TypeSpec:
+							if spec.Name.Name == typeName {
+								return &Context{Program: program, Package: pkg, File: file, TypeSpec: spec}
 							}
 						}
 					}
@@ -74,16 +107,15 @@ func ContextForType(program *loader.Program, typeName string) *PrintContext {
 	return nil
 }
 
-func GetTypeSpec(pkg *loader.PackageInfo, typeName string) *ast.TypeSpec {
-	for _, file := range pkg.Files {
+func (context *Context) RefocusedWithinPackage(typeSpec *ast.TypeSpec) *Context {
+	for _, file := range context.Package.Files {
 		for _, decl := range file.Decls {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
 				if decl.Tok == token.TYPE {
 					for _, spec := range decl.Specs {
-						switch spec := spec.(type) {
-						case *ast.TypeSpec:
-							return spec
+						if typeSpec == spec {
+							return &Context{Program: context.Program, Package: context.Package, File: file, TypeSpec: typeSpec}
 						}
 					}
 				}
@@ -94,9 +126,23 @@ func GetTypeSpec(pkg *loader.PackageInfo, typeName string) *ast.TypeSpec {
 	return nil
 }
 
-func (context *PrintContext) GetImportedPackage(imprt *ast.ImportSpec) *loader.PackageInfo {
+func (context *Context) RefocusedWithSelector(selector *ast.SelectorExpr) *Context {
+	var pkgName string
+	switch expr := selector.X.(type) {
+	case *ast.Ident:
+		pkgName = expr.Name
+	default:
+		glog.Fatal(pretty.Sprint(selector))
+	}
+
+	typeName := selector.Sel.Name
+
+	return context.RefocusedWithPkgAndTypeNames(pkgName, typeName)
+}
+
+func (context *Context) GetImportedPackage(imprt *ast.ImportSpec) *loader.PackageInfo {
 	for _, pkg := range context.Program.AllPackages {
-		if imprt.Path.Value != pkg.Pkg.Path() {
+		if importMatchesPackage(imprt, pkg.Pkg) {
 			return pkg
 		}
 	}
@@ -104,23 +150,18 @@ func (context *PrintContext) GetImportedPackage(imprt *ast.ImportSpec) *loader.P
 	return nil
 }
 
-func (context *PrintContext) GetImportedTypeSpec(pkgName string, typeName string) *ast.TypeSpec {
+func (context *Context) RefocusedWithPkgAndTypeNames(pkgName string, typeName string) *Context {
 	for _, imprt := range context.File.Imports {
 		if imprt.Name != nil {
-			fmt.Println(imprt.Name.Name)
-			fmt.Println(imprt.Path.Value)
 			// If the local name matches, look up the type here.
 			if imprt.Name.Name == pkgName {
-				pkg := context.GetImportedPackage(imprt)
-				return GetTypeSpec(pkg, typeName)
+				return ContextForImportedType(context.Program, imprt, typeName)
 			}
 		} else {
 			// If the default name matches, look up the type here.
 			pkg := context.GetImportedPackage(imprt)
-			fmt.Println(pkg.Pkg.Name())
-			fmt.Println(imprt.Path.Value)
 			if pkg.Pkg.Name() == pkgName {
-				return GetTypeSpec(pkg, typeName)
+				return ContextForPackageAndType(context.Program, pkg, typeName)
 			}
 		}
 	}
@@ -137,26 +178,16 @@ func init() {
 	}
 }
 
-func (context *PrintContext) GetSelectorTypeSpec(selector *ast.SelectorExpr) *ast.TypeSpec {
-	var pkgName string
-	switch expr := selector.X.(type) {
-	case *ast.Ident:
-		pkgName = expr.Name
-	default:
-		glog.Fatal(pretty.Sprint(selector))
+func (context *Context) Print(depth int) {
+	if context == nil {
+		glog.Fatal()
 	}
 
-	typeName := selector.Sel.Name
-
-	return context.GetImportedTypeSpec(pkgName, typeName)
+	fmt.Println(indents[depth], context.TypeSpec.Name)
+	context.PrintType(depth+1, context.TypeSpec.Type)
 }
 
-func (context *PrintContext) PrintTypeSpec(depth int, root *ast.TypeSpec) {
-	fmt.Println(indents[depth], root.Name)
-	context.PrintType(depth+1, root.Type)
-}
-
-func (context *PrintContext) PrintType(depth int, root ast.Expr) {
+func (context *Context) PrintType(depth int, root ast.Expr) {
 	switch root := root.(type) {
 	case *ast.ParenExpr:
 		// Strip parens
@@ -189,7 +220,7 @@ func (context *PrintContext) PrintType(depth int, root ast.Expr) {
 	}
 }
 
-func (context *PrintContext) PrintSelector(depth int, root *ast.SelectorExpr) {
+func (context *Context) PrintSelector(depth int, root *ast.SelectorExpr) {
 	var pkgName string
 	switch expr := root.X.(type) {
 	case *ast.Ident:
@@ -201,20 +232,17 @@ func (context *PrintContext) PrintSelector(depth int, root *ast.SelectorExpr) {
 	typeName := root.Sel.Name
 
 	fmt.Printf("%s%s.%s\n", indents[depth], pkgName, typeName)
-	typeSpec := context.GetImportedTypeSpec(pkgName, typeName)
-	if typeSpec != nil {
-		context.PrintTypeSpec(depth, typeSpec)
-	}
+	context.RefocusedWithSelector(root).Print(depth)
 }
 
-func (context *PrintContext) PrintTypeIdent(depth int, root *ast.Ident) {
+func (context *Context) PrintTypeIdent(depth int, root *ast.Ident) {
 	obj := root.Obj
 	if obj != nil {
 		switch obj.Kind {
 		case ast.Typ:
 			switch decl := obj.Decl.(type) {
 			case *ast.TypeSpec:
-				context.PrintTypeSpec(depth, decl)
+				context.RefocusedWithinPackage(decl).Print(depth)
 			default:
 				fmt.Println(indents[depth], root.Name)
 				fmt.Println(indents[depth+1], "Typ but no TypeSpec")
@@ -233,7 +261,7 @@ func (context *PrintContext) PrintTypeIdent(depth int, root *ast.Ident) {
 	fmt.Println(indents[depth], root.Name)
 }
 
-func (context *PrintContext) PrintField(depth int, root *ast.Field) {
+func (context *Context) PrintField(depth int, root *ast.Field) {
 	l := len(root.Names)
 	if l > 0 {
 		names := make([]string, l)
