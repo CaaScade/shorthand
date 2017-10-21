@@ -11,6 +11,7 @@ var RootCmd = &cobra.Command{
 	Short: "shorthand implements more readable k8s manifests",
 	Run: func(cmd *cobra.Command, args []string) {
 		_, _ = pretty.Println("yes, hello")
+		load()
 	},
 }
 
